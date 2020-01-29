@@ -25,7 +25,19 @@ check_sd_card() {
 	fi
 }
 
+check_i2c_devices() {
+	for ((i=1; i<=$(i2cdetect -l | wc -l); i++));
+	do
+		i2c_bus=$(i2cdetect -y ${i} | awk '{if (NR!=1) {print}}' | awk '{$1=""}1')
+		if [ -n "$(echo $i2c_bus | grep '[0-9]')" ];
+		then
+			echo "An i2c device is connected"
+		fi
+	done
+}
+
 check_usb_to_ttl
 check_flash_drives
 check_sd_card
+check_i2c_devices
 exit 0
