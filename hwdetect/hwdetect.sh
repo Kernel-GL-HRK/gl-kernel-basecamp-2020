@@ -18,6 +18,14 @@ check_flash_drives() {
 	done
 }
 
+check_sd_card() {
+	if [ -n "$(ls /dev | grep -E "^mmcblk[0-9]+$")" ];
+	then
+		echo "An SD card is connected."
+	fi
+}
+
 check_usb_to_ttl
 check_flash_drives
+check_sd_card
 exit 0
