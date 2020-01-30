@@ -39,7 +39,7 @@ print_i2c_devices() {
 }
 
 main() {
-  print_usb_to_ttl_convertors
+  print_block_devices
 
   echo
 
@@ -47,7 +47,7 @@ main() {
 
   echo
 
-  print_block_devices
+  print_usb_to_ttl_convertors
 
   return ${EXIT_OK}
 }
