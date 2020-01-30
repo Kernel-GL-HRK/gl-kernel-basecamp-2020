@@ -13,7 +13,7 @@ check_flash_drives() {
 	do
 		if [ -n "$(udevadm info --query=all --name=${l} | grep 'ID_BUS=usb')" ];
 		then
-			echo "A USB flash drive is connected."
+			echo "A USB flash drive is connected: ${l}"
 		fi
 	done
 }
