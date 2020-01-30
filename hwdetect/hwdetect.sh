@@ -27,8 +27,23 @@ print_block_devices() {
   '
 }
 
+print_i2c_devices() {
+  printf "I2C DEVICES\n\n"
+  printf "%-10s %s\n" "ADAPTER" "ADDRESS"
+
+  for adapter in $(i2cdetect -l | grep -oP "i2c-\K(\d*)" | sort); do
+    for address in $(i2cdetect -y ${adapter} | grep -oP "\s\K(\d{2})\s" | sort); do
+      printf "%-10s 0x%d\n" "i2c-${adapter}" "${address}"
+    done
+  done
+}
+
 main() {
   print_usb_to_ttl_convertors
+
+  echo
+
+  print_i2c_devices
 
   echo
 
