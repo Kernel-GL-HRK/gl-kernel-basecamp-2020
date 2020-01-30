@@ -19,14 +19,9 @@ print_usb_to_ttl_convertors() {
 print_block_devices() {
   printf "BLOCK DEVICES\n"
   printf "=============\n"
+  printf "%-15s %-10s %-10s %-s\n" "NAME" "MAJ:MIN" "SIZE" "MOUNTPOINT"
 
-  lsblk -dn | awk '
-  BEGIN {
-    printf("%-15s %-10s %-10s %-s\n", "NAME", "MAJ:MIN", "SIZE", "MOUNTPOINT")
-  } {
-    printf("%-15s %-10s %-10s %-s\n", $1, $2, $4, $7)
-  }
-  '
+  lsblk -dn | awk '{ printf("%-15s %-10s %-10s %-s\n", $1, $2, $4, $7) }'
 }
 
 print_i2c_devices() {
