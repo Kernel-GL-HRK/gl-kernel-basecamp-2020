@@ -15,8 +15,24 @@ print_usb_to_ttl_convertors() {
   done
 }
 
+print_block_devices() {
+  printf "BLOCK DEVICES\n\n"
+
+  lsblk -dn | awk '
+  BEGIN {
+    printf("%-15s %-10s %-10s %-s\n", "NAME", "MAJ:MIN", "SIZE", "MOUNTPOINT")
+  } {
+    printf("%-15s %-10s %-10s %-s\n", $1, $2, $4, $7)
+  }
+  '
+}
+
 main() {
   print_usb_to_ttl_convertors
+
+  echo
+
+  print_block_devices
 
   return ${EXIT_OK}
 }
