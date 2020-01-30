@@ -38,11 +38,9 @@ print_i2c_devices() {
 
 main() {
   print_block_devices
-
   echo
 
   print_i2c_devices
-
   echo
 
   print_usb_to_ttl_convertors
