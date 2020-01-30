@@ -34,7 +34,7 @@ check_i2c_devices() {
 		i2c_bus=$(i2cdetect -y ${i} | awk '{if (NR!=1) {print}}' | awk '{$1=""}1')
 		if [ -n "$(echo $i2c_bus | grep '[0-9]')" ];
 		then
-			echo "An i2c device is connected"
+			echo "An i2c device is connected to a bus: ${i}"
 		fi
 	done
 }
