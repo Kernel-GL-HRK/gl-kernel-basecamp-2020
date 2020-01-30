@@ -3,7 +3,8 @@
 readonly EXIT_OK=0
 
 print_usb_to_ttl_convertors() {
-  printf "USB TO TTL CONVERTORS\n\n"
+  printf "USB TO TTL CONVERTORS\n"
+  printf "=====================\n"
   printf "%-15s %-10s %-s\n" "DEVICE" "MAJ:MIN" "MODEL"
 
   for dev in $(find /dev -name "ttyUSB*" | sort); do
@@ -16,7 +17,8 @@ print_usb_to_ttl_convertors() {
 }
 
 print_block_devices() {
-  printf "BLOCK DEVICES\n\n"
+  printf "BLOCK DEVICES\n"
+  printf "=============\n"
 
   lsblk -dn | awk '
   BEGIN {
@@ -28,7 +30,8 @@ print_block_devices() {
 }
 
 print_i2c_devices() {
-  printf "I2C DEVICES\n\n"
+  printf "I2C DEVICES\n"
+  printf "===========\n"
   printf "%-10s %s\n" "ADAPTER" "ADDRESS"
 
   for adapter in $(i2cdetect -l | grep -oP "i2c-\K(\d*)" | sort); do
