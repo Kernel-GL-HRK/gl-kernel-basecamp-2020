@@ -19,11 +19,20 @@ tty_log=""
 flash_log=""
 mmc_log=""
 
-function refresh_logs {
+function refresh_logs() {
         tty_log=$(ls $dev_dir | grep $ttyusb)
         flash_log=$(ls $dev_dir | grep $opt $sd)
         mmc_log=$(ls $dev_dir | grep $opt $mmcblk)
 }
+
+function cleanup() {
+        rm $bin_dir/*~.txt
+        rmdir --ignore-fail-on-non-empty $bin_dir
+        echo -e "\nClean exit"
+        exit $RETURN_SUCCES
+}
+
+trap cleanup EXIT
 
 #Current device info
 refresh_logs
@@ -37,21 +46,23 @@ echo "3 - SD cards:"
 
 #temp file init
 mkdir -p $bin_dir
-current_file=~temp1.txt
+
+current_file=temp1~.txt
 echo -e "$tty_log\n$flash_log\n$mmc_log" > $bin_dir/$current_file
 
 echo -e "\nPlug/unplug actions:"
+echo "Press Ctr-C to exit..."
 
 while :; do
         refresh_logs
-        if [[ $current_file = ~temp1.txt ]]; then
-                current_file=~temp2.txt
+        if [[ $current_file = temp1~.txt ]]; then
+                current_file=temp2~.txt
                 echo -e "$tty_log\n$flash_log\n$mmc_log" > $bin_dir/$current_file
-                diff -u $bin_dir/~temp1.txt $bin_dir/~temp2.txt | grep [+-]['a'-'z']
+                diff -u $bin_dir/temp1~.txt $bin_dir/temp2~.txt | grep [+-]['a'-'z']
         else
-                current_file=~temp1.txt
+                current_file=temp1~.txt
                 echo -e "$tty_log\n$flash_log\n$mmc_log" > $bin_dir/$current_file
-                diff -u $bin_dir/~temp2.txt $bin_dir/~temp1.txt | grep [+-]['a'-'z']
+                diff -u $bin_dir/temp2~.txt $bin_dir/temp1~.txt | grep [+-]['a'-'z']
         fi
 done
 
