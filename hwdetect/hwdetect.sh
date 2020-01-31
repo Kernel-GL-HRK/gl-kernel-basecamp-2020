@@ -14,6 +14,7 @@ DESCRIPTION
   A bash script that detects block devices, I2C devices, USB to TTL convertors.
 
   -l  Display hardware listing
+  -w  Watch for hardware changes
   -h  Display this help and exit
 
 AUTHOR
@@ -161,13 +162,83 @@ print_hardware_listing() {
   print_usb_to_ttl_convertors "$(get_usb_to_ttl_convertors)"
 }
 
-readonly OPTIONS="lh"
+readonly HARDWARE_BEFORE_SNAPSHOT="/tmp/hwdetect-before.snapshot"
+readonly HARDWARE_AFTER_SNAPSHOT="/tmp/hwdtect-after.snapshot"
+readonly HARDWARE_DETECTION_DELAY=5
+
+write_devices_to_hardware_snapshot() {
+  local readonly snapshot=$1
+  local readonly label=$2
+  local readonly devices=($3)
+
+  for device in "${devices[@]}"; do
+    printf "%s#%s\n" "${label}" "${device}" >> ${snapshot}
+  done
+}
+
+create_hardware_snapshot() {
+  local readonly snapshot=$1
+
+  printf "timestamp %s\n" "$(date +'%Y%m%d-%H:%M:%S.%N')" > ${snapshot}
+
+  write_devices_to_hardware_snapshot ${snapshot} "blk" "$(get_block_devices)"
+  write_devices_to_hardware_snapshot ${snapshot} "i2c" "$(get_i2c_devices)"
+  write_devices_to_hardware_snapshot ${snapshot} "ttyUSB" "$(get_usb_to_ttl_convertors)"
+}
+
+watch_hardware_changes() {
+  printf "HARDWARE CHANGES\n"
+  printf "================\n"
+  printf "%-28s %-20s %-10s %s\n" "TIMESTAMP" "DEVICE" "TYPE" "STATUS"
+
+  while true; do
+    create_hardware_snapshot ${HARDWARE_BEFORE_SNAPSHOT}
+    sleep ${HARDWARE_DETECTION_DELAY}
+    create_hardware_snapshot ${HARDWARE_AFTER_SNAPSHOT}
+
+    local hardware_diff=$(
+      diff \
+      <(cat ${HARDWARE_BEFORE_SNAPSHOT} | tail -n +2) \
+      <(cat ${HARDWARE_AFTER_SNAPSHOT} | tail -n +2) \
+      | tail -n +2
+    )
+
+    if [[ -z "${hardware_diff}" ]]; then
+      continue
+    fi
+
+    local timestamp=$(date +"%Y%m%d-%H:%M:%S.%N")
+
+    local connected_hardware=($(echo "${hardware_diff}" | grep ">" | cut -d " " -f2))
+    local disconnected_hardware=($(echo "${hardware_diff}" | grep "<" | cut -d " " -f2))
+
+    for hardware in "${connected_hardware[@]}"; do
+      local device=$(echo ${hardware} | cut -d "#" -f2)
+      local type=$(echo ${hardware} | cut -d "#" -f1)
+
+      printf "%-28s %-20s %-10s %s\n" "${timestamp}" "${device}" "${type}" "CONNECTED"
+    done
+
+    for hardware in "${disconnected_hardware[@]}"; do
+      local device=$(echo ${hardware} | cut -d "#" -f2)
+      local type=$(echo ${hardware} | cut -d "#" -f1)
+
+      printf "%-28s %-20s %-10s %s\n" "${timestamp}" "${device}" "${type}" "DISCONNECTED"
+    done
+  done
+}
+
+readonly OPTIONS="lwh"
 
 main() {
   while getopts "${OPTIONS}" option; do
     case ${option} in
       l)
         print_hardware_listing
+        return ${EXIT_OK}
+        ;;
+      w)
+        watch_hardware_changes
         return ${EXIT_OK}
         ;;
       h)
