@@ -1,5 +1,13 @@
 #!/usr/bin/env bash
 
+################################################################################
+
+# A solution for hardware detector (hwdetect)
+# https://github.com/Kernel-GL-HRK/gl-kernel-basecamp-2020/commit/5418201
+# Author: Eduard Malokhvii <malokhvii.ee@gmail.com>
+
+################################################################################
+
 readonly USAGE=$(cat <<EOF
 NAME
 
@@ -27,7 +35,13 @@ usage() {
   printf "${USAGE}\n\n"
 }
 
+################################################################################
+
+# Exit codes
+
 readonly EXIT_OK=0
+
+################################################################################
 
 get_device_major() {
   local readonly device=$1
@@ -43,17 +57,22 @@ get_device_minor() {
   echo "${minor}"
 }
 
+################################################################################
+
 get_block_devices() {
   local devices=$(lsblk -dn | cut -d " " -f1 | sed -e 's#^#/dev/#' | sort)
 
   echo "${devices}"
 }
 
+################################################################################
+
 get_i2c_devices() {
   local devices=()
 
   for adapter in $(i2cdetect -l | grep -oP "i2c-\K(\d*)" | sort); do
-    for address in $(i2cdetect -y ${adapter} | grep -oP "\s\K(\d{2})\s" | sort); do
+    for address in $(i2cdetect -y ${adapter} | grep -oP "\s\K(\d{2})\s" | \
+      sort); do
       devices+=("/dev/i2c-${adapter}:0x${address}")
     done
   done
@@ -75,6 +94,8 @@ get_i2c_device_address() {
   echo "${address}"
 }
 
+################################################################################
+
 get_usb_to_ttl_convertors() {
   local readonly devices=$(find /dev -name "ttyUSB*" | sort)
 
@@ -89,6 +110,8 @@ get_usb_to_ttl_convertor_model() {
 
   echo "${model}"
 }
+
+################################################################################
 
 print_block_devices() {
   local readonly devices=($1)
@@ -162,6 +185,8 @@ print_hardware_listing() {
   print_usb_to_ttl_convertors "$(get_usb_to_ttl_convertors)"
 }
 
+################################################################################
+
 readonly HARDWARE_BEFORE_SNAPSHOT="/tmp/hwdetect-before.snapshot"
 readonly HARDWARE_AFTER_SNAPSHOT="/tmp/hwdtect-after.snapshot"
 readonly HARDWARE_DETECTION_DELAY=5
@@ -183,7 +208,8 @@ create_hardware_snapshot() {
 
   write_devices_to_hardware_snapshot ${snapshot} "blk" "$(get_block_devices)"
   write_devices_to_hardware_snapshot ${snapshot} "i2c" "$(get_i2c_devices)"
-  write_devices_to_hardware_snapshot ${snapshot} "ttyUSB" "$(get_usb_to_ttl_convertors)"
+  write_devices_to_hardware_snapshot ${snapshot} "ttyUSB" \
+    "$(get_usb_to_ttl_convertors)"
 }
 
 watch_hardware_changes() {
@@ -207,26 +233,34 @@ watch_hardware_changes() {
       continue
     fi
 
-    local timestamp=$(date +"%Y%m%d-%H:%M:%S.%N")
+    local readonly timestamp=$(date +"%Y%m%d-%H:%M:%S.%N")
 
-    local connected_hardware=($(echo "${hardware_diff}" | grep ">" | cut -d " " -f2))
-    local disconnected_hardware=($(echo "${hardware_diff}" | grep "<" | cut -d " " -f2))
+    local readonly connected_hardware=(
+      $(echo "${hardware_diff}" | grep ">" | cut -d " " -f2)
+    )
+    local readonly disconnected_hardware=(
+      $(echo "${hardware_diff}" | grep "<" | cut -d " " -f2)
+    )
 
     for hardware in "${connected_hardware[@]}"; do
       local device=$(echo ${hardware} | cut -d "#" -f2)
       local type=$(echo ${hardware} | cut -d "#" -f1)
 
-      printf "%-28s %-20s %-10s %s\n" "${timestamp}" "${device}" "${type}" "CONNECTED"
+      printf "%-28s %-20s %-10s %s\n" "${timestamp}" "${device}" "${type}" \
+        "CONNECTED"
     done
 
     for hardware in "${disconnected_hardware[@]}"; do
       local device=$(echo ${hardware} | cut -d "#" -f2)
       local type=$(echo ${hardware} | cut -d "#" -f1)
 
-      printf "%-28s %-20s %-10s %s\n" "${timestamp}" "${device}" "${type}" "DISCONNECTED"
+      printf "%-28s %-20s %-10s %s\n" "${timestamp}" "${device}" "${type}" \
+        "DISCONNECTED"
     done
   done
 }
+
+################################################################################
 
 readonly OPTIONS="lwh"
 
@@ -239,7 +273,6 @@ main() {
         ;;
       w)
         watch_hardware_changes
-        return ${EXIT_OK}
         ;;
       h)
         usage
