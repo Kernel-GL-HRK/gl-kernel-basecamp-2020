@@ -1,5 +1,31 @@
 #!/usr/bin/env bash
 
+readonly USAGE=$(cat <<EOF
+NAME
+
+  $0 - Hardware detector
+
+SYNOPSIS
+
+  $0 [OPTION]...
+
+DESCRIPTION
+
+  A bash script that detects block devices, I2C devices, USB to TTL convertors.
+
+  -l  Display hardware listing
+  -h  Display this help and exit
+
+AUTHOR
+
+  Written by Eduard Malokhvii <malokhvii.ee@gmail.com>.
+EOF
+)
+
+usage() {
+  printf "${USAGE}\n\n"
+}
+
 readonly EXIT_OK=0
 
 get_device_major() {
@@ -129,11 +155,29 @@ print_usb_to_ttl_convertors() {
   echo
 }
 
-main() {
+print_hardware_listing() {
   print_block_devices "$(get_block_devices)"
   print_i2c_devices "$(get_i2c_devices)"
   print_usb_to_ttl_convertors "$(get_usb_to_ttl_convertors)"
+}
 
+readonly OPTIONS="lh"
+
+main() {
+  while getopts "${OPTIONS}" option; do
+    case ${option} in
+      l)
+        print_hardware_listing
+        return ${EXIT_OK}
+        ;;
+      h)
+        usage
+        return ${EXIT_OK}
+        ;;
+    esac
+  done
+
+  usage
   return ${EXIT_OK}
 }
 
