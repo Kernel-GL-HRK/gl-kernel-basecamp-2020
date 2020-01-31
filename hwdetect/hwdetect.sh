@@ -1,8 +1,10 @@
 #!/bin/bash
 
-printf "USB to TTL\n"
+start_log=$(ls /dev)
 
-for device in $(find /dev -name "ttyUSB*"); do
-    dev_model=$(udevadm info ${device} | grep "ID_MODEL_FROM_DATABASE" | cut -d "=" -f2)
-    echo ${device} ${dev_model}
+while true; do
+    cur_log=$(ls /dev)
+    diff <(echo "$start_log") <(echo "$cur_log")
+    start_log=$cur_log
 done
+
