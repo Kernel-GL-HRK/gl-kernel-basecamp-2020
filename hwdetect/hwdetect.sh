@@ -23,6 +23,7 @@ DESCRIPTION
 
   -l  Display hardware listing
   -w  Watch for hardware changes
+  -d  Delay between hardware detections
   -h  Display this help and exit
 
 AUTHOR
@@ -40,6 +41,13 @@ usage() {
 # Exit codes
 
 readonly EXIT_OK=0
+readonly EXIT_INVAL=1
+
+################################################################################
+
+error() {
+  printf "$@\n" >&2
+}
 
 ################################################################################
 
@@ -187,9 +195,9 @@ print_hardware_listing() {
 
 ################################################################################
 
+readonly DEFAULT_HARDWARE_DETECTION_DELAY=10
 readonly HARDWARE_BEFORE_SNAPSHOT="/tmp/hwdetect-before.snapshot"
 readonly HARDWARE_AFTER_SNAPSHOT="/tmp/hwdtect-after.snapshot"
-readonly HARDWARE_DETECTION_DELAY=5
 
 write_devices_to_hardware_snapshot() {
   local readonly snapshot=$1
@@ -213,13 +221,15 @@ create_hardware_snapshot() {
 }
 
 watch_hardware_changes() {
+  local readonly hardware_detection_delay=$1
+
   printf "HARDWARE CHANGES\n"
   printf "================\n"
   printf "%-28s %-20s %-10s %s\n" "TIMESTAMP" "DEVICE" "TYPE" "STATUS"
 
   while true; do
     create_hardware_snapshot ${HARDWARE_BEFORE_SNAPSHOT}
-    sleep ${HARDWARE_DETECTION_DELAY}
+    sleep ${hardware_detection_delay}
     create_hardware_snapshot ${HARDWARE_AFTER_SNAPSHOT}
 
     local hardware_diff=$(
@@ -262,26 +272,47 @@ watch_hardware_changes() {
 
 ################################################################################
 
-readonly OPTIONS="lwh"
+readonly OPTIONS="lwd:h"
+readonly OPTERR=0
 
 main() {
+  local show_hardware_listing=false
+  local watch_hardware_changes=false
+
+  local hardware_detection_delay=${DEFAULT_HARDWARE_DETECTION_DELAY}
+
   while getopts "${OPTIONS}" option; do
     case ${option} in
       l)
-        print_hardware_listing
-        return ${EXIT_OK}
+        show_hardware_listing=true
         ;;
       w)
-        watch_hardware_changes
+        watch_hardware_changes=true
         ;;
-      h)
+      d)
+        hardware_detection_delay=${OPTARG}
+        ;;
+      h | ?)
         usage
         return ${EXIT_OK}
         ;;
     esac
   done
+  shift $((OPTIND -1))
 
-  usage
+  if ! [[ ${hardware_detection_delay} -gt 0 ]]; then
+    error "Wrong hardware detection delay!"
+    return ${EXIT_INVAL};
+  fi
+
+  if [[ ${show_hardware_listing} == true ]]; then
+    print_hardware_listing
+  fi
+
+  if [[ ${watch_hardware_changes} == true ]]; then
+    watch_hardware_changes ${hardware_detection_delay}
+  fi
+
   return ${EXIT_OK}
 }
 
