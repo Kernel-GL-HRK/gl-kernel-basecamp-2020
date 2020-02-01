@@ -6,9 +6,13 @@ dev_dir="/dev"
 #grep option
 opt="-w" #ignore slaves or holders
 
+#architecture flag for i2c-tools
+arm_flag=""
+[[ `arch` = armv7l ]] && arm_flag=1
+
 #grep paterns
 ttyusb="ttyUSB['0'-'9']"
-sd="sd['b'-'z']" #ignore the first device - "sda"
+[[ $arm_flag ]] && sd="sd['a'-'z']" || sd="sd['b'-'z']" #ignore the first device - "sda", if this script isn't run by orangepione
 mmcblk="mmcblk['0'-'9']"
 
 #bin directory
@@ -43,6 +47,11 @@ echo "2 - Flash devices:"
 [[ -n $flash_log ]] && echo "$flash_log" || echo "none"
 echo "3 - SD cards:"
 [[ -n $mmc_log ]] && echo "$mmc_log" || echo "none"
+if [[ $arm_flag ]]; then
+        i2c_log=$(sudo i2cdetect -y 0 | grep ' '['0'-'7']['0'-'f']' ')
+        echo "4 - i2c adresses:"
+        [[ -n $i2c_log ]] && echo "$i2c_log" || echo "none"
+fi
 
 #temp file init
 mkdir -p $bin_dir
