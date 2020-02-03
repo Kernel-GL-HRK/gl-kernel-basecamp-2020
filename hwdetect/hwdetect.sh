@@ -63,6 +63,7 @@ echo -e "\nPlug/unplug actions:"
 echo "Press Ctr-C to exit..."
 
 while :; do
+        sleep 1
         refresh_logs
         if [[ $current_file = temp1~.txt ]]; then
                 current_file=temp2~.txt
