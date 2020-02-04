@@ -3,12 +3,14 @@
 usb0=$(mktemp)
 flash0=$(mktemp)
 sd0=$(mktemp)
+i2c0=$(mktemp)
 
 usb1=$(mktemp)
 flash1=$(mktemp)
 sd1=$(mktemp)
+i2c1=$(mktemp)
 
-echo "Hardware that is detected from start"
+echo -e "Hardware that is detected from start\n"
 echo "USB to ttl:"
 ls /dev | grep ttyUSB* > $usb0
 if [[ -n $(cat $usb0) ]]; then
@@ -16,16 +18,35 @@ if [[ -n $(cat $usb0) ]]; then
 else 
     echo "none"
 fi
+echo
 
-echo "USB flash drives that are connected"
+echo "USB flash drives:"
 ls /dev/sd[a-z] > $flash0
 if [[ -n $(cat $flash0) ]]; then
     cat $flash0
 else
     echo "none"    
 fi
+echo
 
-echo 
+echo "I2C devices: "
+i2cdetect -l > $i2c0
+if [[ -n $(cat $i2c0) ]]; then
+    cat $i2c0
+else
+    echo "none"    
+fi
+echo
+
+echo "SD cards: "
+ls /dev | grep -E "mmcblk[0-9]+$" > $sd0
+if [[ -n $(cat $sd0) ]]; then
+    cat $sd0
+else
+    echo "none"    
+fi
+echo
+
 echo "Active detector"
 while true; do
     ls /dev | grep ttyUSB* > $usb1
@@ -34,12 +55,18 @@ while true; do
     ls /dev/sd[a-z] > $flash1
     flash_drives=$(diff --new-line-format=$'>connected> %l\n' --old-line-format=$'<disconnected< %l\n' --unchanged-group-format='' $flash0 $flash1)
 
+    i2cdetect -l > $i2c1
+    i2c_devices=$(diff --new-line-format=$'>connected> %l\n' --old-line-format=$'<disconnected< %l\n' --unchanged-group-format='' $i2c0 $i2c1)
+
+    ls /dev | grep -E "mmcblk[0-9]+$" > $sd1
+    sd_cards=$(diff --new-line-format=$'>connected> %l\n' --old-line-format=$'<disconnected< %l\n' --unchanged-group-format='' $sd0 $sd1)
+
     if [[ -n  "$usb_to_ttl" ]]; then
         for i in $(echo "$usb_to_ttl"); do 
             echo "$i"
         done  
         echo
-        ls /dev | grep ttyUSB* > $usb0
+        cat $usb1 > $usb0
     fi
 
     if [[ -n  "$flash_drives" ]]; then
@@ -47,7 +74,23 @@ while true; do
             echo "$j"
         done
         echo
-        ls /dev/sd[a-z] > $flash0 | 2>/dev/null
+        cat $flash1 > $flash0 | 2>/dev/null
+    fi
+
+    if [[ -n  "$i2c_devices" ]]; then
+        for k in $(echo "$i2c_devices"); do 
+            echo "$k"
+        done
+        echo
+        cat $i2c1 > $i2c0
+    fi
+
+    if [[ -n  "$sd_cards" ]]; then
+        for l in $(echo "$sd_cards"); do 
+            echo "$l"
+        done
+        echo
+        cat $sd1 > $sd0
     fi
 
     sleep 1
@@ -57,58 +100,7 @@ trap "rm -f $usb0" 0 2 3 15
 trap "rm -f $usb1" 0 2 3 15
 trap "rm -f $flash0" 0 2 3 15
 trap "rm -f $flash1" 0 2 3 15
-
-
-
-# SD cards
-
-# i2c devicesecho "USB flash drives that are connected:"
-ls /dev/sd[a-z] > $flash0
-if [[ -n $(cat $flash0) ]]; then
-    cat $flash0
-else 
-    echo "none"
-fi
-
-echo 
-echo "Active detector"
-while true; do
-    ls /dev | grep ttyUSB* > $usb1
-    usb_to_ttl=$(diff $usb0 $usb1 )
-
-    ls /dev/sd[a-z] > $flash1
-    flash_drives=$(diff $flash0 $flash1)
-
-    if [[ -n  "$usb_to_ttl" ]]; then
-        if [[ "$(diff $usb0 $usb1 | head -c1)" = ">" ]]; then
-            echo "connected"
-        else
-            echo "disconnected"
-        fi  
-        echo "$usb_to_ttl"
-        echo
-        ls /dev > $usb0
-    fi
-
-    if [[ -n  "$flash_drives" ]]; then
-        if [[ "$( diff $flash0 $flash1 | head -c1)" = ">" ]]; then
-            echo "connected"
-            echo "$flash_drives"
-        elif [[ "$(echo "$flash_drives" | head -c1)" = "<" ]]; then
-            echo "disconnected"
-            echo "$flash_drives"
-        fi  
-        cat $flash1 > $flash0
-    fi
-done
-
-trap "rm -f $usb0" 0 2 3 15
-trap "rm -f $usb1" 0 2 3 15
-trap "rm -f $flash0" 0 2 3 15
-trap "rm -f $flash1" 0 2 3 15
-
-
-
-# SD cards
-
-# i2c devices
+trap "rm -f $i2c0" 0 2 3 15
+trap "rm -f $i2c1" 0 2 3 15
+trap "rm -f $sd0" 0 2 3 15
+trap "rm -f $sd1" 0 2 3 15
