@@ -11,9 +11,11 @@ static struct timespec64 last_read;
 static struct class *mytimer_class;
 
 static ssize_t show_interval(struct class *class, struct class_attribute *attr, char *buf);
-static ssize_t store_interval(struct class *class, struct class_attribute *attr, const char *buf, size_t count);
 
-static struct class_attribute mytimer_interval = __ATTR( interval, 00644, show_interval, store_interval);
+static ssize_t show_time(struct class *class, struct class_attribute *attr, char *buf);
+
+static struct class_attribute mytimer_interval = __ATTR(interval, 00644, show_interval, NULL);
+static struct class_attribute mytimer_time = __ATTR(time, 00644, show_time, NULL);
 
 static ssize_t show_interval(struct class *class, struct class_attribute *attr, char *buffer)
 {
@@ -27,9 +29,15 @@ static ssize_t show_interval(struct class *class, struct class_attribute *attr, 
 	return len;
 }
 
-static ssize_t store_interval(struct class *class, struct class_attribute *attr, const char *buf, size_t count)
+static ssize_t show_time(struct class *class, struct class_attribute *attr, char *buffer)
 {
-	return count;
+	size_t len;
+	char buf[MSG_LENGTH];
+	struct timespec64 tmp;
+	ktime_get_real_ts64(&tmp);
+	len = sprintf(buf, "%lld.%ld", tmp.tv_sec, tmp.tv_nsec);
+	strncpy(buffer, buf, len);
+	return len;
 }
 
 static int __init mytimer_init(void)
@@ -43,6 +51,8 @@ static int __init mytimer_init(void)
 	
 	if ((ret = class_create_file(mytimer_class, &mytimer_interval)) < 0)
 		return ret;
+	if ((ret = class_create_file(mytimer_class, &mytimer_time)) < 0)
+		return ret;
 	return 0;
 }
 
@@ -50,6 +60,7 @@ static void __exit mytimer_exit(void)
 {
 	pr_info("mytimer: exit\n");
 	class_remove_file(mytimer_class, &mytimer_interval);
+	class_remove_file(mytimer_class, &mytimer_time);
 	class_destroy(mytimer_class);
 }
 
