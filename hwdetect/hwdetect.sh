@@ -94,13 +94,5 @@ while true; do
     fi
 
     sleep 1
+    trap 'rm -f $usb0 $usb1 $flash0 $flash1 $i2c0 $i2c1 $sd0 $sd1 && echo -e "\n***********Detection ended***********" && exit' 2 3 15
 done
-
-trap "rm -f $usb0" 0 2 3 15
-trap "rm -f $usb1" 0 2 3 15
-trap "rm -f $flash0" 0 2 3 15
-trap "rm -f $flash1" 0 2 3 15
-trap "rm -f $i2c0" 0 2 3 15
-trap "rm -f $i2c1" 0 2 3 15
-trap "rm -f $sd0" 0 2 3 15
-trap "rm -f $sd1" 0 2 3 15
