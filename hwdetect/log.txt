@@ -1,0 +1,30 @@
+Desktop example (description in README.md):
+
+Device directory: /dev
+1 - TTY USB:
+ttyUSB0
+2 - Flash devices:
+sdb
+3 - SD cards:
+none
+
+Plug/unplug actions:
+Press Ctr-C to exit...
+-sdb
++mmcblk0
+-ttyUSB0
+-mmcblk0
++sdb
+^C
+Clean exit
+
+OrangePi One example:
+
+...
+2 - Flash devices:
+none
+3 - SD cards:
+mmcblk0
+4 - i2c adresses:
+30: -- -- -- -- -- -- -- -- -- -- -- -- 3c -- -- -- 
+...
