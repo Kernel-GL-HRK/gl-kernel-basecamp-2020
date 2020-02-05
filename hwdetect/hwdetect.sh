@@ -44,7 +44,7 @@ function printInfo
 			       	continue
 				;;
 		esac
-        
+
 	done
 }
 
@@ -65,6 +65,7 @@ function main
 		    devs=`ls /dev/`
 	    fi	
     done
+	
     return $STATUS_OK
 }
 
