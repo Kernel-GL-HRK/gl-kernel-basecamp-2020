@@ -47,6 +47,8 @@ else
 fi
 echo
 
+trap 'rm -f $usb0 $usb1 $flash0 $flash1 $i2c0 $i2c1 $sd0 $sd1 && echo -e "\n***********Detection ended***********" && exit' 2 3 15
+
 echo "Active detector"
 while true; do
     ls /dev | grep ttyUSB* > $usb1
@@ -94,5 +96,4 @@ while true; do
     fi
 
     sleep 1
-    trap 'rm -f $usb0 $usb1 $flash0 $flash1 $i2c0 $i2c1 $sd0 $sd1 && echo -e "\n***********Detection ended***********" && exit' 2 3 15
 done
