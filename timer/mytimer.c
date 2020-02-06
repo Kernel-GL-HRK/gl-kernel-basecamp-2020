@@ -7,7 +7,7 @@
 
 #define CLASS_NAME "mytimer"
 #define MSG_LENGTH 128
-#define CPU_LOAD_UPDATE 1
+#define CPU_LOAD_UPDATE 2
 
 static struct timespec64 last_read;
 static u64 cpu_load;
@@ -61,6 +61,8 @@ static ssize_t show_load(struct class *class, struct class_attribute *attr, char
 static void cpu_load_callback(struct timer_list *timer)
 {
 	printk(KERN_INFO "Timer: callback\n");
+	cpu_load_timer.expires = get_jiffies_64() + (CPU_LOAD_UPDATE * HZ);
+	add_timer(&cpu_load_timer);
 }
 
 static int __init mytimer_init(void)
@@ -80,7 +82,7 @@ static int __init mytimer_init(void)
 		return ret;
 
 	/* Timer initialization */
-	timer_setup(&cpu_load_timer, cpu_load_callback, TIMER_DEFERRABLE);
+	timer_setup(&cpu_load_timer, cpu_load_callback, 0);
 	cpu_load_timer.expires = get_jiffies_64() + (CPU_LOAD_UPDATE * HZ);
 	add_timer(&cpu_load_timer);
 	return 0;
@@ -93,6 +95,7 @@ static void __exit mytimer_exit(void)
 	class_remove_file(mytimer_class, &mytimer_time);
 	class_remove_file(mytimer_class, &mytimer_load);
 	class_destroy(mytimer_class);
+	del_timer(&cpu_load_timer);
 }
 
 module_init(mytimer_init);
