@@ -4,9 +4,11 @@ make format
 make
 make install
 cat /sys/class/timer/inter
-for (( del = 0; del < 101; del += 5)); do
+for (( del = 0; del < 30; del += 5)); do
         sleep $del
-        echo -e "delay = $del\t$(cat /sys/class/timer/inter)"
+        iter=$(cat /sys/class/timer/inter)
+        time=$(cat /sys/class/timer/time)
+        echo -e "delay = $del\t${iter}\t${time}"
 done
 make uninstall
 

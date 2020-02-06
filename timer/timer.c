@@ -3,38 +3,65 @@
 #include <linux/module.h>
 #include <linux/device.h>
 #include <linux/timer.h>
-#include <linux/jiffies.h>
+#include <linux/hrtimer.h>
+#include <linux/ktime.h>
 
 #define TIMEOUT 1000U
 
-//static struct timer_list inter_timer;
-static unsigned long sec = 0;
+static u32 inter_sec = 0;
 
 static ssize_t inter_show(struct class *class, struct class_attribute *attr,
 			  char *buffer);
+static ssize_t time_show(struct class *class, struct class_attribute *attr,
+			 char *buffer);
 
 void inter_callback(struct timer_list *timer);
+//enum hrtimer_restart hr_callback(struct hrtimer *timer);
 
 static struct class *class_timer = NULL;
 CLASS_ATTR_RO(inter);
+CLASS_ATTR_RO(time);
 
 DEFINE_TIMER(inter_timer, inter_callback);
+static struct hrtimer hr_timer;
 
 static ssize_t inter_show(struct class *class, struct class_attribute *attr,
 			  char *buffer)
 {
 	mod_timer(&inter_timer, jiffies + msecs_to_jiffies(TIMEOUT));
-	sprintf(buffer, "time = %lu s\n", sec);
-	sec = 0;
+	sprintf(buffer, "inter = %u s\n", inter_sec);
+	inter_sec = 0;
+	return strlen(buffer);
+}
+
+static ssize_t time_show(struct class *class, struct class_attribute *attr,
+			 char *buffer)
+{
+	static ktime_t time = 0;
+	static s32 hr_sec = 0;
+	static s64 hr_nsec = 0;
+	time = hrtimer_cb_get_time(&hr_timer);
+	hr_sec = time / NSEC_PER_SEC;
+	hr_nsec = time % NSEC_PER_SEC;
+	sprintf(buffer, "inter = %u s %lld ns\n", hr_sec, hr_nsec);
 	return strlen(buffer);
 }
 
 void inter_callback(struct timer_list *timer)
 {
 	mod_timer(&inter_timer, jiffies + msecs_to_jiffies(TIMEOUT));
-	++sec;
-	//printk(KERN_INFO "timer: callback\n");
+	++inter_sec;
 }
+
+//For restarting the timer after ~585 years
+/*
+enum hrtimer_restart hr_callback(struct hrtimer *timer)
+{
+	//--restart actions--
+	hrtimer_forward_now(timer,KTIME_MAX));
+    	return HRTIMER_RESTART;
+}
+*/
 
 static int timer_init(void)
 {
@@ -50,17 +77,22 @@ static int timer_init(void)
 
 	ret = class_create_file(class_timer, &class_attr_inter);
 	if (ret) {
-		printk(KERN_ERR
-		       "timer: failed to create sysfs class attribute inter: %d\n",
-		       ret);
+		printk(KERN_ERR "timer: bad create attribute inter: %d\n", ret);
 		return ret;
 	}
 
-	//setup_timer(&inter_timer, inter_callback, 0);
+	ret = class_create_file(class_timer, &class_attr_time);
+	if (ret) {
+		printk(KERN_ERR "timer: bad create attribute time: %d\n", ret);
+		return ret;
+	}
 
 	add_timer(&inter_timer);
-	sec = 0;
+	hrtimer_init(&hr_timer, CLOCK_MONOTONIC, HRTIMER_MODE_REL);
+	//hr_timer.function = &hr_callback;
+
 	mod_timer(&inter_timer, jiffies + msecs_to_jiffies(TIMEOUT));
+	hrtimer_start(&hr_timer, KTIME_MAX, HRTIMER_MODE_REL);
 
 	printk(KERN_INFO "timer: module loaded\n");
 	return 0;
@@ -70,10 +102,12 @@ static void timer_exit(void)
 {
 	if (class_timer) {
 		class_remove_file(class_timer, &class_attr_inter);
+		class_remove_file(class_timer, &class_attr_time);
 	}
 	class_destroy(class_timer);
 
 	del_timer(&inter_timer);
+	hrtimer_cancel(&hr_timer);
 
 	printk(KERN_INFO "timer: module unloaded\n");
 }
