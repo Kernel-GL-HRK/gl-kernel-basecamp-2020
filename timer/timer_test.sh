@@ -3,7 +3,6 @@
 make format
 make
 make install
-cat /sys/class/timer/inter
 for (( del = 0; del < 30; del += 5)); do
         sleep $del
         iter=$(cat /sys/class/timer/inter)
