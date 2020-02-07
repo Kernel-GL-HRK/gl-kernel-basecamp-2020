@@ -3,5 +3,5 @@
 
 int main(int argc, char **argv)
 {
-	return !(printf("Absolute time: %u\n", time(0)));
+	return !(printf("Absolute time: %u s\n", time(0)));
 }
