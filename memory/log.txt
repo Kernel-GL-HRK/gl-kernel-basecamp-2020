@@ -1,0 +1,2 @@
+malloc(1) inter = 72499 ns
+free() inter = 192 ns
