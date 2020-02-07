@@ -17,3 +17,26 @@ generated output in text format.
 Pull request should contain the commit with source code and
 text output from sysfs.
  
+## Solution
+
+The program in user space is not much (literally one line of code), but this
+one is not that important, right?
+
+The program in kernel space creates a class in sysfs and 3 attributes that
+correspond to 3 sub tasks. The interval time is passed in nanoseconds.
+
+#### User space output
+
+`Absolute time: 1581088893 s`
+
+#### Kernel space output
+
+`[milaner@/sys/class/mytimer]$ ls`  
+`interval  load  time`  
+`[milaner@/sys/class/mytimer]$ cat interval`  
+`9535071734`  
+`[milaner@/sys/class/mytimer]$ cat load`  
+`12%`  
+`[milaner@/sys/class/mytimer]$ cat time`  
+`1581088996.47667980`  
+
