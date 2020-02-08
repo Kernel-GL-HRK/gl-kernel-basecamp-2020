@@ -1,0 +1,30 @@
+kmalloc() test:
+buffer	alloc	free
+4096	165	52
+65536	5609	904
+1048576	73767	1464
+vmalloc() test:
+buffer	alloc	free
+4096	3063	823
+65536	14780	1968
+1048576	119795	37206
+kzalloc() test:
+buffer	alloc	free
+4096	613	435
+65536	7399	601
+1048576	89170	1915
+vzalloc() test:
+buffer	alloc	free
+4096	4793	1769
+65536	10099	2152
+1048576	115382	36541
+kvmalloc() test:
+buffer	alloc	free
+4096	797	546
+65536	5395	592
+1048576	86963	1890
+kvzalloc() test:
+buffer	alloc	free
+4096	322	189
+65536	4778	427
+1048576	65145	1867
