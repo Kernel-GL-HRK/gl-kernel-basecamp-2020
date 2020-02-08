@@ -9,12 +9,12 @@ lsmod | head -n 3
 Module                  Size  Used by
 timer                  16384  0
 rfcomm                 81920  4
-delay = 0	inter = 0 s	time = 12023.773065613 s
-delay = 5	inter = 4 s	time = 12028.779487398 s
-delay = 10	inter = 9 s	time = 12038.887123080 s
-delay = 15	inter = 14 s	time = 12053.994505999 s
-delay = 20	inter = 19 s	time = 12073.001877621 s
-delay = 25	inter = 24 s	time = 12098.007975765 s
+delay = 0 s	0 s	43101.479117324 s
+delay = 5 s	4 s	43106.487744126 s
+delay = 10 s	9 s	43116.499542923 s
+delay = 15 s	14 s	43131.512692214 s
+delay = 20 s	19 s	43151.521922340 s
+delay = 25 s	24 s	43176.534086133 s
 sudo rmmod timer.ko
 lsmod | head -n 3
 Module                  Size  Used by

@@ -30,7 +30,7 @@ static ssize_t inter_show(struct class *class, struct class_attribute *attr,
 			  char *buffer)
 {
 	mod_timer(&inter_timer, jiffies + msecs_to_jiffies(TIMEOUT));
-	sprintf(buffer, "inter = %u s\n", inter_sec);
+	sprintf(buffer, "%u\n", inter_sec);
 	inter_sec = 0;
 	return strlen(buffer);
 }
@@ -38,19 +38,8 @@ static ssize_t inter_show(struct class *class, struct class_attribute *attr,
 static ssize_t time_show(struct class *class, struct class_attribute *attr,
 			 char *buffer)
 {
-	ktime_t time = 0;
-	char hr_sec[MAX_HR_BUFF] = "";
-	size_t len = 0;
-	time = hrtimer_cb_get_time(&hr_timer);
-	len = snprintf(hr_sec, MAX_HR_BUFF, "%lld", time);
-	if (len > DOT_POS && len < MAX_HR_BUFF - 1) {
-		size_t i;
-		for (i = len - 1; i > len - DOT_POS; --i) {
-			hr_sec[i + 1] = hr_sec[i];
-		}
-		hr_sec[len - DOT_POS] = '.';
-	}
-	sprintf(buffer, "time = %s s\n", hr_sec);
+	ktime_t time = hrtimer_cb_get_time(&hr_timer);
+	sprintf(buffer, "%lu\n", time);
 	return strlen(buffer);
 }
 
