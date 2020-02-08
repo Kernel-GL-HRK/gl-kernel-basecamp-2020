@@ -1,20 +1,23 @@
 clang-format-9 -i timer.c
 make -C /lib/modules/5.3.0-26-generic/build M=/home/matthewzorin/Linux_Kernel/gl-kernel-basecamp-2020/timer modules
 make[1]: Entering directory '/usr/src/linux-headers-5.3.0-26-generic'
+  CC [M]  /home/matthewzorin/Linux_Kernel/gl-kernel-basecamp-2020/timer/timer.o
   Building modules, stage 2.
   MODPOST 1 modules
+  CC      /home/matthewzorin/Linux_Kernel/gl-kernel-basecamp-2020/timer/timer.mod.o
+  LD [M]  /home/matthewzorin/Linux_Kernel/gl-kernel-basecamp-2020/timer/timer.ko
 make[1]: Leaving directory '/usr/src/linux-headers-5.3.0-26-generic'
 sudo insmod timer.ko
 lsmod | head -n 3
 Module                  Size  Used by
 timer                  16384  0
 rfcomm                 81920  4
-delay = 0 s	0 s	43101.479117324 s
-delay = 5 s	4 s	43106.487744126 s
-delay = 10 s	9 s	43116.499542923 s
-delay = 15 s	14 s	43131.512692214 s
-delay = 20 s	19 s	43151.521922340 s
-delay = 25 s	24 s	43176.534086133 s
+delay = 0 s	0 s	43938.387953473 s
+delay = 5 s	4 s	43938.401249981 s
+delay = 10 s	9 s	43943.409896369 s
+delay = 15 s	14 s	43953.422080384 s
+delay = 20 s	19 s	43968.434459577 s
+delay = 25 s	24 s	43988.446966911 s
 sudo rmmod timer.ko
 lsmod | head -n 3
 Module                  Size  Used by

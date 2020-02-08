@@ -11,6 +11,7 @@
 #define DOT_POS 9
 
 static u32 inter_sec = 0;
+static ktime_t time = 0;
 
 static ssize_t inter_show(struct class *class, struct class_attribute *attr,
 			  char *buffer);
@@ -38,8 +39,8 @@ static ssize_t inter_show(struct class *class, struct class_attribute *attr,
 static ssize_t time_show(struct class *class, struct class_attribute *attr,
 			 char *buffer)
 {
-	ktime_t time = hrtimer_cb_get_time(&hr_timer);
-	sprintf(buffer, "%lu\n", time);
+	sprintf(buffer, "%llu\n", time);
+	time = hrtimer_cb_get_time(&hr_timer);
 	return strlen(buffer);
 }
 
@@ -78,6 +79,7 @@ static int timer_init(void)
 
 	mod_timer(&inter_timer, jiffies + msecs_to_jiffies(TIMEOUT));
 	hrtimer_start(&hr_timer, KTIME_MAX, HRTIMER_MODE_REL);
+	time = hrtimer_cb_get_time(&hr_timer);
 
 	printk(KERN_INFO "timer: module loaded\n");
 	return 0;
