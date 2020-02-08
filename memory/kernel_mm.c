@@ -8,7 +8,7 @@
 #include <linux/time64.h>
 
 #define CLASS_NAME "mm_test"
-#define TABLE_LENGTH 4096
+#define TABLE_LENGTH 1024
 #define BUF_LENGTH 128
 #define TEST1_BYTES 4096UL
 #define TEST2_BYTES 65536UL
@@ -18,6 +18,9 @@
 #define TEST3_PAGES (TEST3_BYTES / PAGE_SIZE)
 
 static char kmalloc_result[TABLE_LENGTH];
+static char vmalloc_result[TABLE_LENGTH];
+static char kzalloc_result[TABLE_LENGTH];
+static char vzalloc_result[TABLE_LENGTH];
 
 static struct class *mm_test_class;
 
@@ -32,8 +35,11 @@ static ssize_t show_result(struct class *class,
 			struct class_attribute *attr,
 			char *buffer)
 {
-	strcpy(buffer, kmalloc_result);
-	return strlen(kmalloc_result);
+	strcat(buffer, kmalloc_result);
+	strcat(buffer, vmalloc_result);
+	strcat(buffer, kzalloc_result);
+	strcat(buffer, vzalloc_result);
+	return strlen(buffer);
 }
 
 static void check_kmalloc(void)
@@ -91,6 +97,171 @@ static void check_kmalloc(void)
 	strcat(kmalloc_result, buf);
 }
 
+static void check_vmalloc(void)
+{
+	struct timespec64 start, end;
+	void *p;
+	long alloc_res, free_res;
+	char buf[BUF_LENGTH];
+
+	strcat(vmalloc_result, "vmalloc() test:\n");
+	strcat(vmalloc_result, "buffer\talloc\tfree\n");
+	ktime_get_real_ts64(&start);
+	p = vmalloc(TEST1_BYTES);
+	ktime_get_real_ts64(&end);
+	start = timespec64_sub(end, start);
+	alloc_res = timespec64_to_ns(&start);
+
+	ktime_get_real_ts64(&start);
+	vfree(p);
+	ktime_get_real_ts64(&end);
+	start = timespec64_sub(end, start);
+	free_res = timespec64_to_ns(&start);
+
+	sprintf(buf, "%lu\t%ld\t%ld\n", TEST1_BYTES, alloc_res, free_res);
+	strcat(vmalloc_result, buf);
+
+	ktime_get_real_ts64(&start);
+	p = vmalloc(TEST2_BYTES);
+	ktime_get_real_ts64(&end);
+	start = timespec64_sub(end, start);
+	alloc_res = timespec64_to_ns(&start);
+
+	ktime_get_real_ts64(&start);
+	vfree(p);
+	ktime_get_real_ts64(&end);
+	start = timespec64_sub(end, start);
+	free_res = timespec64_to_ns(&start);
+
+	sprintf(buf, "%lu\t%ld\t%ld\n", TEST2_BYTES, alloc_res, free_res);
+	strcat(vmalloc_result, buf);
+
+	ktime_get_real_ts64(&start);
+	p = vmalloc(TEST3_BYTES);
+	ktime_get_real_ts64(&end);
+	start = timespec64_sub(end, start);
+	alloc_res = timespec64_to_ns(&start);
+
+	ktime_get_real_ts64(&start);
+	vfree(p);
+	ktime_get_real_ts64(&end);
+	start = timespec64_sub(end, start);
+	free_res = timespec64_to_ns(&start);
+
+	sprintf(buf, "%lu\t%ld\t%ld\n", TEST3_BYTES, alloc_res, free_res);
+	strcat(vmalloc_result, buf);
+}
+
+static void check_kzalloc(void)
+{
+	struct timespec64 start, end;
+	void *p;
+	long alloc_res, free_res;
+	char buf[BUF_LENGTH];
+
+	strcat(kzalloc_result, "kzalloc() test:\n");
+	strcat(kzalloc_result, "buffer\talloc\tfree\n");
+	ktime_get_real_ts64(&start);
+	p = kzalloc(TEST1_BYTES, GFP_KERNEL);
+	ktime_get_real_ts64(&end);
+	start = timespec64_sub(end, start);
+	alloc_res = timespec64_to_ns(&start);
+
+	ktime_get_real_ts64(&start);
+	kfree(p);
+	ktime_get_real_ts64(&end);
+	start = timespec64_sub(end, start);
+	free_res = timespec64_to_ns(&start);
+
+	sprintf(buf, "%lu\t%ld\t%ld\n", TEST1_BYTES, alloc_res, free_res);
+	strcat(kzalloc_result, buf);
+
+	ktime_get_real_ts64(&start);
+	p = kzalloc(TEST2_BYTES, GFP_KERNEL);
+	ktime_get_real_ts64(&end);
+	start = timespec64_sub(end, start);
+	alloc_res = timespec64_to_ns(&start);
+
+	ktime_get_real_ts64(&start);
+	kfree(p);
+	ktime_get_real_ts64(&end);
+	start = timespec64_sub(end, start);
+	free_res = timespec64_to_ns(&start);
+
+	sprintf(buf, "%lu\t%ld\t%ld\n", TEST2_BYTES, alloc_res, free_res);
+	strcat(kzalloc_result, buf);
+
+	ktime_get_real_ts64(&start);
+	p = kzalloc(TEST3_BYTES, GFP_KERNEL);
+	ktime_get_real_ts64(&end);
+	start = timespec64_sub(end, start);
+	alloc_res = timespec64_to_ns(&start);
+
+	ktime_get_real_ts64(&start);
+	kfree(p);
+	ktime_get_real_ts64(&end);
+	start = timespec64_sub(end, start);
+	free_res = timespec64_to_ns(&start);
+
+	sprintf(buf, "%lu\t%ld\t%ld\n", TEST3_BYTES, alloc_res, free_res);
+	strcat(kzalloc_result, buf);
+}
+
+static void check_vzalloc(void)
+{
+	struct timespec64 start, end;
+	void *p;
+	long alloc_res, free_res;
+	char buf[BUF_LENGTH];
+
+	strcat(vzalloc_result, "vzalloc() test:\n");
+	strcat(vzalloc_result, "buffer\talloc\tfree\n");
+	ktime_get_real_ts64(&start);
+	p = vzalloc(TEST1_BYTES);
+	ktime_get_real_ts64(&end);
+	start = timespec64_sub(end, start);
+	alloc_res = timespec64_to_ns(&start);
+
+	ktime_get_real_ts64(&start);
+	vfree(p);
+	ktime_get_real_ts64(&end);
+	start = timespec64_sub(end, start);
+	free_res = timespec64_to_ns(&start);
+
+	sprintf(buf, "%lu\t%ld\t%ld\n", TEST1_BYTES, alloc_res, free_res);
+	strcat(vzalloc_result, buf);
+
+	ktime_get_real_ts64(&start);
+	p = vzalloc(TEST2_BYTES);
+	ktime_get_real_ts64(&end);
+	start = timespec64_sub(end, start);
+	alloc_res = timespec64_to_ns(&start);
+
+	ktime_get_real_ts64(&start);
+	vfree(p);
+	ktime_get_real_ts64(&end);
+	start = timespec64_sub(end, start);
+	free_res = timespec64_to_ns(&start);
+
+	sprintf(buf, "%lu\t%ld\t%ld\n", TEST2_BYTES, alloc_res, free_res);
+	strcat(vzalloc_result, buf);
+
+	ktime_get_real_ts64(&start);
+	p = vzalloc(TEST3_BYTES);
+	ktime_get_real_ts64(&end);
+	start = timespec64_sub(end, start);
+	alloc_res = timespec64_to_ns(&start);
+
+	ktime_get_real_ts64(&start);
+	vfree(p);
+	ktime_get_real_ts64(&end);
+	start = timespec64_sub(end, start);
+	free_res = timespec64_to_ns(&start);
+
+	sprintf(buf, "%lu\t%ld\t%ld\n", TEST3_BYTES, alloc_res, free_res);
+	strcat(vzalloc_result, buf);
+}
+
 static int __init memory_init(void)
 {
 	int ret;
@@ -103,6 +274,9 @@ static int __init memory_init(void)
 		return ret;
 
 	check_kmalloc();
+	check_vmalloc();
+	check_kzalloc();
+	check_vzalloc();
 	return 0;
 }
 
