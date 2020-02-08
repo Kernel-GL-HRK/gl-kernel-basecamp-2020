@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0 
+// SPDX-License-Identifier: GPL-2.0
 #include <linux/slab.h>
 #include <linux/mm.h>
 #include <linux/module.h>
@@ -22,6 +22,7 @@ static char vmalloc_result[TABLE_LENGTH];
 static char kzalloc_result[TABLE_LENGTH];
 static char vzalloc_result[TABLE_LENGTH];
 static char kvmalloc_result[TABLE_LENGTH];
+static char kvzalloc_result[TABLE_LENGTH];
 
 static struct class *mm_test_class;
 
@@ -41,6 +42,7 @@ static ssize_t show_result(struct class *class,
 	strcat(buffer, kzalloc_result);
 	strcat(buffer, vzalloc_result);
 	strcat(buffer, kvmalloc_result);
+	strcat(buffer, kvzalloc_result);
 	return strlen(buffer);
 }
 
@@ -319,6 +321,61 @@ static void check_kvmalloc(void)
 	strcat(kvmalloc_result, buf);
 }
 
+static void check_kvzalloc(void)
+{
+	struct timespec64 start, end;
+	void *p;
+	long alloc_res, free_res;
+	char buf[BUF_LENGTH];
+
+	strcat(kvzalloc_result, "kvzalloc() test:\n");
+	strcat(kvzalloc_result, "buffer\talloc\tfree\n");
+	ktime_get_real_ts64(&start);
+	p = kvzalloc(TEST1_BYTES, GFP_KERNEL);
+	ktime_get_real_ts64(&end);
+	start = timespec64_sub(end, start);
+	alloc_res = timespec64_to_ns(&start);
+
+	ktime_get_real_ts64(&start);
+	kfree(p);
+	ktime_get_real_ts64(&end);
+	start = timespec64_sub(end, start);
+	free_res = timespec64_to_ns(&start);
+
+	sprintf(buf, "%lu\t%ld\t%ld\n", TEST1_BYTES, alloc_res, free_res);
+	strcat(kvzalloc_result, buf);
+
+	ktime_get_real_ts64(&start);
+	p = kvzalloc(TEST2_BYTES, GFP_KERNEL);
+	ktime_get_real_ts64(&end);
+	start = timespec64_sub(end, start);
+	alloc_res = timespec64_to_ns(&start);
+
+	ktime_get_real_ts64(&start);
+	kfree(p);
+	ktime_get_real_ts64(&end);
+	start = timespec64_sub(end, start);
+	free_res = timespec64_to_ns(&start);
+
+	sprintf(buf, "%lu\t%ld\t%ld\n", TEST2_BYTES, alloc_res, free_res);
+	strcat(kvzalloc_result, buf);
+
+	ktime_get_real_ts64(&start);
+	p = kvzalloc(TEST3_BYTES, GFP_KERNEL);
+	ktime_get_real_ts64(&end);
+	start = timespec64_sub(end, start);
+	alloc_res = timespec64_to_ns(&start);
+
+	ktime_get_real_ts64(&start);
+	kfree(p);
+	ktime_get_real_ts64(&end);
+	start = timespec64_sub(end, start);
+	free_res = timespec64_to_ns(&start);
+
+	sprintf(buf, "%lu\t%ld\t%ld\n", TEST3_BYTES, alloc_res, free_res);
+	strcat(kvzalloc_result, buf);
+}
+
 static int __init memory_init(void)
 {
 	int ret;
@@ -335,6 +392,7 @@ static int __init memory_init(void)
 	check_kzalloc();
 	check_vzalloc();
 	check_kvmalloc();
+	check_kvzalloc();
 	return 0;
 }
 
