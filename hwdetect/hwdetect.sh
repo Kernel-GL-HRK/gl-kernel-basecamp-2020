@@ -6,4 +6,5 @@ while true; do
     cur_log=$(ls /dev)
     diff --new-line-format=$'--> %l\n' --old-line-format=$'<-- %l\n' --unchanged-group-format='' <(echo "$start_log") <(echo "$cur_log") 
     start_log=$cur_log
+    sleep 1
 done
