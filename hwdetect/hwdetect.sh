@@ -10,6 +10,14 @@ flash1=$(mktemp)
 sd1=$(mktemp)
 i2c1=$(mktemp)
 
+ALL_TMP_FILES="$usb0 $usb1 $flash0 $flash1 $i2c0 $i2c1 $sd0 $sd1"
+
+CON_MSG=">connected> %l"
+
+DISCON_MSG="<disconnected< %l"
+
+END_MSG="***********Detection ended***********"
+
 echo -e "Hardware that is detected from start\n"
 echo "USB to ttl:"
 ls /dev | grep ttyUSB* > $usb0
@@ -47,21 +55,21 @@ else
 fi
 echo
 
-trap 'rm -f $usb0 $usb1 $flash0 $flash1 $i2c0 $i2c1 $sd0 $sd1 && echo -e "\n***********Detection ended***********" && exit' 2 3 15
+trap 'rm -f $ALL_TMP_FILES && echo -e "\n$END_MSG" && exit' 2 3 15
 
 echo "Active detector"
 while true; do
     ls /dev | grep ttyUSB* > $usb1
-    usb_to_ttl=$(diff --new-line-format=$'>connected> %l\n' --old-line-format=$'<disconnected< %l\n' --unchanged-group-format='' $usb0 $usb1 )
+    usb_to_ttl=$(diff --new-line-format=$"$CON_MSG" --old-line-format=$"$DISCON_MSG" --unchanged-group-format='' $usb0 $usb1 )
 
     ls /dev/sd[a-z] > $flash1
-    flash_drives=$(diff --new-line-format=$'>connected> %l\n' --old-line-format=$'<disconnected< %l\n' --unchanged-group-format='' $flash0 $flash1)
+    flash_drives=$(diff --new-line-format=$"$CON_MSG" --old-line-format=$"$DISCON_MSG" --unchanged-group-format='' $flash0 $flash1)
 
     i2cdetect -l > $i2c1
-    i2c_devices=$(diff --new-line-format=$'>connected> %l\n' --old-line-format=$'<disconnected< %l\n' --unchanged-group-format='' $i2c0 $i2c1)
+    i2c_devices=$(diff --new-line-format=$"$CON_MSG" --old-line-format=$"$DISCON_MSG" --unchanged-group-format='' $i2c0 $i2c1)
 
     ls /dev | grep -E "mmcblk[0-9]+$" > $sd1
-    sd_cards=$(diff --new-line-format=$'>connected> %l\n' --old-line-format=$'<disconnected< %l\n' --unchanged-group-format='' $sd0 $sd1)
+    sd_cards=$(diff --new-line-format=$"$CON_MSG" --old-line-format=$"$DISCON_MSG" --unchanged-group-format='' $sd0 $sd1)
 
     if [[ -n  "$usb_to_ttl" ]]; then
         for i in $(echo "$usb_to_ttl"); do 
