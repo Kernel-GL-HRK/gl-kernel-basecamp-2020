@@ -10,6 +10,7 @@
 #define BUFF_SIZE 1024
 
 static size_t alloc_size;
+static unsigned int page_order;
 static struct hrtimer hr_timer;
 static ktime_t kt1;
 static ktime_t kt2;
@@ -20,15 +21,24 @@ static ssize_t alloc_size_show(struct class *class,
 static ssize_t alloc_size_store(struct class *class,
 				struct class_attribute *attr,
 				const char *buffer, size_t count);
+static ssize_t page_order_show(struct class *class,
+			       struct class_attribute *attr, char *buffer);
+static ssize_t page_order_store(struct class *class,
+				struct class_attribute *attr,
+				const char *buffer, size_t count);
 static ssize_t kmalloc_show(struct class *class, struct class_attribute *attr,
 			    char *buffer);
 static ssize_t vmalloc_show(struct class *class, struct class_attribute *attr,
 			    char *buffer);
+static ssize_t pages_show(struct class *class, struct class_attribute *attr,
+			  char *buffer);
 
 static struct class *class_alloc;
 CLASS_ATTR_RW(alloc_size);
+CLASS_ATTR_RW(page_order);
 CLASS_ATTR_RO(kmalloc);
 CLASS_ATTR_RO(vmalloc);
+CLASS_ATTR_RO(pages);
 
 static ssize_t alloc_size_show(struct class *class,
 			       struct class_attribute *attr, char *buffer)
@@ -42,6 +52,21 @@ static ssize_t alloc_size_store(struct class *class,
 				const char *buffer, size_t count)
 {
 	sscanf(buffer, "%lu\n", &alloc_size);
+	return count;
+}
+
+static ssize_t page_order_show(struct class *class,
+			       struct class_attribute *attr, char *buffer)
+{
+	sprintf(buffer, "%u\n", page_order);
+	return strlen(buffer);
+}
+
+static ssize_t page_order_store(struct class *class,
+				struct class_attribute *attr,
+				const char *buffer, size_t count)
+{
+	sscanf(buffer, "%u\n", &page_order);
 	return count;
 }
 
@@ -87,6 +112,28 @@ static ssize_t vmalloc_show(struct class *class, struct class_attribute *attr,
 	return strlen(buffer);
 }
 
+static ssize_t pages_show(struct class *class, struct class_attribute *attr,
+			  char *buffer)
+{
+	void *ppages;
+
+	kt1 = hrtimer_cb_get_time(&hr_timer);
+	ppages = (void *)__get_free_pages(GFP_KERNEL, page_order);
+	kt2 = hrtimer_cb_get_time(&hr_timer);
+	if (!ppages) {
+		printk(KERN_WARNING "kernel_memory: no free pages: %d\n",
+		       ENOMEM);
+		return strlen(buffer);
+	}
+	alloc_time = kt2 - kt1;
+	kt1 = hrtimer_cb_get_time(&hr_timer);
+	free_pages((unsigned long)ppages, page_order);
+	kt2 = hrtimer_cb_get_time(&hr_timer);
+	sprintf(buffer, "%llu %llu\n", alloc_time, (kt2 - kt1));
+
+	return strlen(buffer);
+}
+
 static int __init kernel_memory_init(void)
 {
 	int ret;
@@ -108,6 +155,15 @@ static int __init kernel_memory_init(void)
 		return ret;
 	}
 
+	class_attr_page_order.attr.mode = (S_IWUGO | S_IRUGO);
+	ret = class_create_file(class_alloc, &class_attr_page_order);
+	if (ret) {
+		printk(KERN_ERR
+		       "kernel_memory: bad page order attr create: %d\n",
+		       ret);
+		return ret;
+	}
+
 	ret = class_create_file(class_alloc, &class_attr_kmalloc);
 	if (ret) {
 		printk(KERN_ERR "kernel_memory: bad kmalloc attr create: %d\n",
@@ -118,6 +174,13 @@ static int __init kernel_memory_init(void)
 	ret = class_create_file(class_alloc, &class_attr_vmalloc);
 	if (ret) {
 		printk(KERN_ERR "kernel_memory: bad vmalloc attr create: %d\n",
+		       ret);
+		return ret;
+	}
+
+	ret = class_create_file(class_alloc, &class_attr_pages);
+	if (ret) {
+		printk(KERN_ERR "kernel_memory: bad pages attr create: %d\n",
 		       ret);
 		return ret;
 	}
@@ -133,8 +196,10 @@ static void __exit kernel_memory_exit(void)
 {
 	if (class_alloc) {
 		class_remove_file(class_alloc, &class_attr_alloc_size);
+		class_remove_file(class_alloc, &class_attr_page_order);
 		class_remove_file(class_alloc, &class_attr_kmalloc);
 		class_remove_file(class_alloc, &class_attr_vmalloc);
+		class_remove_file(class_alloc, &class_attr_pages);
 	}
 	class_destroy(class_alloc);
 

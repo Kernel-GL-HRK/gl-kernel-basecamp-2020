@@ -1,31 +1,59 @@
+*-------------------------*kmalloc & vmalloc*--------------------------*
+
 Buffer size (bytes)      Memory         Allocation (ns)     Freeing (ns)        
 
-3792                     kernel         787                 431                 
-                         virtual        9592                2922                
+1701                     kernel         533                 338                 
+                         virtual        7897                1644                
 
-9017                     kernel         2947                727                 
-                         virtual        9898                2340                
+15033                    kernel         4411                910                 
+                         virtual        8802                2246                
 
-19881                    kernel         8011                789                 
-                         virtual        12223               2238                
+17847                    kernel         5609                1000                
+                         virtual        8827                2085                
 
-31703                    kernel         5581                899                 
-                         virtual        15957               2970                
+28478                    kernel         5418                914                 
+                         virtual        13454               2819                
 
-37263                    kernel         11096               962                 
-                         virtual        15483               3061                
+36897                    kernel         11049               826                 
+                         virtual        14147               2418                
 
-49005                    kernel         8536                656                 
-                         virtual        13608               2460                
+45765                    kernel         11353               934                 
+                         virtual        50195               20093               
 
-52023                    kernel         8718                635                 
-                         virtual        12779               2384                
+49458                    kernel         8828                646                 
+                         virtual        12401               2672                
 
-61594                    kernel         8534                642                 
-                         virtual        19025               3386                
+58497                    kernel         12644               1198                
+                         virtual        209648              20867               
 
-70464                    kernel         20678               1291                
-                         virtual        18856               3376                
+66940                    kernel         18363               905                 
+                         virtual        16486               3068                
 
-81730                    kernel         16941               913                 
-                         virtual        22022               4159                
+78897                    kernel         17411               1334                
+                         virtual        27571               5090                
+
+
+
+*------------------------*get_free_pages*---------------------------*
+
+Order     Buffer size (bytes)      Allocation (ns)     Freeing (ns)        
+
+0         4096                     497                 303                 
+
+1         8192                     1121                385                 
+
+2         16384                    2594                601                 
+
+3         32768                    6106                817                 
+
+4         65536                    8699                629                 
+
+5         131072                   18928               893                 
+
+6         262144                   36869               1103                
+
+7         524288                   105431              2731                
+
+8         1048576                  158975              2296                
+
+9         2097152                  373053              5106                
