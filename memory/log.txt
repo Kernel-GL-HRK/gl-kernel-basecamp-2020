@@ -1,36 +1,86 @@
-*-------------------------*kmalloc & vmalloc*--------------------------*
+*--------------------*kmalloc & vmalloc (random buffer)*---------------------*
 
 Buffer size (bytes)      Memory         Allocation (ns)     Freeing (ns)        
 
-1701                     kernel         533                 338                 
-                         virtual        7897                1644                
+12374                    kernel         4046                1025                
+                         virtual        9358                2593                
 
-15033                    kernel         4411                910                 
-                         virtual        8802                2246                
+24593                    kernel         6766                950                 
+                         virtual        9667                1998                
 
-17847                    kernel         5609                1000                
-                         virtual        8827                2085                
+48824                    kernel         11553               1173                
+                         virtual        17196               3251                
 
-28478                    kernel         5418                914                 
-                         virtual        13454               2819                
+53345                    kernel         7986                664                 
+                         virtual        13854               2396                
 
-36897                    kernel         11049               826                 
-                         virtual        14147               2418                
+81412                    kernel         15442               792                 
+                         virtual        17539               3015                
 
-45765                    kernel         11353               934                 
-                         virtual        50195               20093               
+83048                    kernel         15614               730                 
+                         virtual        14907               2895                
 
-49458                    kernel         8828                646                 
-                         virtual        12401               2672                
+108850                   kernel         23327               1383                
+                         virtual        32555               6344                
 
-58497                    kernel         12644               1198                
-                         virtual        209648              20867               
+116873                   kernel         19991               966                 
+                         virtual        32272               5707                
 
-66940                    kernel         18363               905                 
-                         virtual        16486               3068                
+134030                   kernel         38414               1003                
+                         virtual        29246               5403                
 
-78897                    kernel         17411               1334                
-                         virtual        27571               5090                
+160692                   kernel         36838               987                 
+                         virtual        254117              13233               
+
+
+
+*------------------------*kmalloc & zsmalloc & vmalloc*------------------------*
+
+Buffer size (bytes)      Memory         Allocation (ns)     Freeing (ns)        
+
+                         kernel         386                 245                 
+4                        zram           9086                1499                
+                         virtual        6410                1542                
+
+                         kernel         533                 248                 
+8                        zram           3318                1486                
+                         virtual        9337                1978                
+
+                         kernel         475                 285                 
+16                       zram           2588                1353                
+                         virtual        5666                1405                
+
+                         kernel         307                 185                 
+32                       zram           4165                1586                
+                         virtual        4771                1802                
+
+                         kernel         279                 191                 
+64                       zram           2455                1177                
+                         virtual        5282                1570                
+
+                         kernel         206                 139                 
+128                      zram           3590                1500                
+                         virtual        5412                1534                
+
+                         kernel         455                 200                 
+256                      zram           2211                1295                
+                         virtual        8205                2606                
+
+                         kernel         263                 206                 
+512                      zram           4070                1694                
+                         virtual        4781                1552                
+
+                         kernel         235                 191                 
+1024                     zram           3771                1638                
+                         virtual        5566                1393                
+
+                         kernel         371                 241                 
+2048                     zram           6173                1686                
+                         virtual        5623                1814                
+
+                         kernel         449                 224                 
+4096                     zram           2324                1255                
+                         virtual        5671                1917                
 
 
 
@@ -38,22 +88,22 @@ Buffer size (bytes)      Memory         Allocation (ns)     Freeing (ns)
 
 Order     Buffer size (bytes)      Allocation (ns)     Freeing (ns)        
 
-0         4096                     497                 303                 
+0         4096                     929                 451                 
 
-1         8192                     1121                385                 
+1         8192                     1311                383                 
 
-2         16384                    2594                601                 
+2         16384                    2133                457                 
 
-3         32768                    6106                817                 
+3         32768                    4018                561                 
 
-4         65536                    8699                629                 
+4         65536                    9013                389                 
 
-5         131072                   18928               893                 
+5         131072                   17499               709                 
 
-6         262144                   36869               1103                
+6         262144                   31974               1042                
 
-7         524288                   105431              2731                
+7         524288                   97945               2504                
 
-8         1048576                  158975              2296                
+8         1048576                  209419              3669                
 
-9         2097152                  373053              5106                
+9         2097152                  318210              4180                

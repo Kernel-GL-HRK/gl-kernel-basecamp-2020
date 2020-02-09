@@ -12,7 +12,7 @@ function get_rand {
 RANDOM=$SECONDS
 sys_dir=/sys/class/alloc_test
 log_file=./log.txt
-start_upper=8192
+start_upper=16384
 curr_upper=$start_upper
 curr_lower=0
 page_size=4096
@@ -25,7 +25,7 @@ echo "Start output redirection. Write to file $log_file..."
 echo "" > $log_file #Cleaning log file
 exec 3>$log_file 4>&1 1>&3 #Open to write new file descriptor, save stdout, stdout > log.txt
 
-echo "*-------------------------*kmalloc & vmalloc*--------------------------*"
+echo "*--------------------*kmalloc & vmalloc (random buffer)*---------------------*"
 printf "\n%-25s%-15s%-20s%-20s\n" "Buffer size (bytes)" "Memory" "Allocation (ns)" "Freeing (ns)"
 for (( i = 0; i < 10; ++i)); do
         rand_size=$(get_rand ${curr_upper} ${curr_lower})
@@ -35,6 +35,18 @@ for (( i = 0; i < 10; ++i)); do
         kmalloc=( $(cat ${sys_dir}/kmalloc) )
         vmalloc=( $(cat ${sys_dir}/vmalloc) )
         printf "\n%-25lu%-15s%-20s%-20s\n" "$(cat ${sys_dir}/alloc_size)" "kernel" ${kmalloc[0]} ${kmalloc[1]}
+        printf "%-25s%-15s%-20s%-20s\n" "" "virtual" ${vmalloc[0]} ${vmalloc[1]}
+done
+
+echo -e "\n\n\n*------------------------*kmalloc & zsmalloc & vmalloc*------------------------*"
+printf "\n%-25s%-15s%-20s%-20s\n" "Buffer size (bytes)" "Memory" "Allocation (ns)" "Freeing (ns)"
+for (( i = 4; i <= $page_size; i *= 2)); do
+        echo $i > ${sys_dir}/alloc_size
+        kmalloc=( $(cat ${sys_dir}/kmalloc) )
+        zsmalloc=( $(cat ${sys_dir}/zsmalloc) )
+        vmalloc=( $(cat ${sys_dir}/vmalloc) )
+        printf "\n%-25s%-15s%-20s%-20s\n" "" "kernel" ${kmalloc[0]} ${kmalloc[1]}
+        printf "%-25lu%-15s%-20s%-20s\n" "$(cat ${sys_dir}/alloc_size)" "zram" ${zsmalloc[0]} ${zsmalloc[1]}
         printf "%-25s%-15s%-20s%-20s\n" "" "virtual" ${vmalloc[0]} ${vmalloc[1]}
 done
 

@@ -3,6 +3,7 @@
 #include <linux/module.h>
 #include <linux/device.h>
 #include <linux/slab.h>
+#include <linux/zsmalloc.h>
 #include <linux/hrtimer.h>
 #include <linux/ktime.h>
 #include <asm/uaccess.h>
@@ -11,6 +12,7 @@
 
 static size_t alloc_size;
 static unsigned int page_order;
+static struct zs_pool *pool;
 static struct hrtimer hr_timer;
 static ktime_t kt1;
 static ktime_t kt2;
@@ -28,6 +30,8 @@ static ssize_t page_order_store(struct class *class,
 				const char *buffer, size_t count);
 static ssize_t kmalloc_show(struct class *class, struct class_attribute *attr,
 			    char *buffer);
+static ssize_t zsmalloc_show(struct class *class, struct class_attribute *attr,
+			     char *buffer);
 static ssize_t vmalloc_show(struct class *class, struct class_attribute *attr,
 			    char *buffer);
 static ssize_t pages_show(struct class *class, struct class_attribute *attr,
@@ -37,6 +41,7 @@ static struct class *class_alloc;
 CLASS_ATTR_RW(alloc_size);
 CLASS_ATTR_RW(page_order);
 CLASS_ATTR_RO(kmalloc);
+CLASS_ATTR_RO(zsmalloc);
 CLASS_ATTR_RO(vmalloc);
 CLASS_ATTR_RO(pages);
 
@@ -91,6 +96,29 @@ static ssize_t kmalloc_show(struct class *class, struct class_attribute *attr,
 	return strlen(buffer);
 }
 
+static ssize_t zsmalloc_show(struct class *class, struct class_attribute *attr,
+			     char *buffer)
+{
+	void *pobj;
+
+	kt1 = hrtimer_cb_get_time(&hr_timer);
+	pobj = (void *)zs_malloc(pool, alloc_size, GFP_KERNEL);
+	kt2 = hrtimer_cb_get_time(&hr_timer);
+	if (!pobj) {
+		printk(KERN_WARNING "kernel_memory: bad zsmalloc: %d\n",
+		       ENOMEM);
+		return strlen(buffer);
+	}
+	alloc_time = kt2 - kt1;
+	kt1 = hrtimer_cb_get_time(&hr_timer);
+	zs_free(pool, (unsigned long)pobj);
+	kt2 = hrtimer_cb_get_time(&hr_timer);
+
+	sprintf(buffer, "%llu %llu\n", alloc_time, (kt2 - kt1));
+
+	return strlen(buffer);
+}
+
 static ssize_t vmalloc_show(struct class *class, struct class_attribute *attr,
 			    char *buffer)
 {
@@ -107,6 +135,7 @@ static ssize_t vmalloc_show(struct class *class, struct class_attribute *attr,
 	kt1 = hrtimer_cb_get_time(&hr_timer);
 	vfree(pdata);
 	kt2 = hrtimer_cb_get_time(&hr_timer);
+
 	sprintf(buffer, "%llu %llu\n", alloc_time, (kt2 - kt1));
 
 	return strlen(buffer);
@@ -120,6 +149,7 @@ static ssize_t pages_show(struct class *class, struct class_attribute *attr,
 	kt1 = hrtimer_cb_get_time(&hr_timer);
 	ppages = (void *)__get_free_pages(GFP_KERNEL, page_order);
 	kt2 = hrtimer_cb_get_time(&hr_timer);
+
 	if (!ppages) {
 		printk(KERN_WARNING "kernel_memory: no free pages: %d\n",
 		       ENOMEM);
@@ -129,6 +159,7 @@ static ssize_t pages_show(struct class *class, struct class_attribute *attr,
 	kt1 = hrtimer_cb_get_time(&hr_timer);
 	free_pages((unsigned long)ppages, page_order);
 	kt2 = hrtimer_cb_get_time(&hr_timer);
+
 	sprintf(buffer, "%llu %llu\n", alloc_time, (kt2 - kt1));
 
 	return strlen(buffer);
@@ -137,7 +168,9 @@ static ssize_t pages_show(struct class *class, struct class_attribute *attr,
 static int __init kernel_memory_init(void)
 {
 	int ret;
+
 	alloc_size = BUFF_SIZE;
+	page_order = 0;
 
 	class_alloc = class_create(THIS_MODULE, "alloc_test");
 	if (IS_ERR(class_alloc)) {
@@ -171,6 +204,13 @@ static int __init kernel_memory_init(void)
 		return ret;
 	}
 
+	ret = class_create_file(class_alloc, &class_attr_zsmalloc);
+	if (ret) {
+		printk(KERN_ERR "kernel_memory: bad zsmalloc attr create: %d\n",
+		       ret);
+		return ret;
+	}
+
 	ret = class_create_file(class_alloc, &class_attr_vmalloc);
 	if (ret) {
 		printk(KERN_ERR "kernel_memory: bad vmalloc attr create: %d\n",
@@ -185,6 +225,8 @@ static int __init kernel_memory_init(void)
 		return ret;
 	}
 
+	pool = zs_create_pool("test");
+
 	hrtimer_init(&hr_timer, CLOCK_MONOTONIC, HRTIMER_MODE_REL);
 	hrtimer_start(&hr_timer, KTIME_MAX, HRTIMER_MODE_REL);
 
@@ -198,10 +240,13 @@ static void __exit kernel_memory_exit(void)
 		class_remove_file(class_alloc, &class_attr_alloc_size);
 		class_remove_file(class_alloc, &class_attr_page_order);
 		class_remove_file(class_alloc, &class_attr_kmalloc);
+		class_remove_file(class_alloc, &class_attr_zsmalloc);
 		class_remove_file(class_alloc, &class_attr_vmalloc);
 		class_remove_file(class_alloc, &class_attr_pages);
 	}
 	class_destroy(class_alloc);
+
+	zs_destroy_pool(pool);
 
 	hrtimer_cancel(&hr_timer);
 
