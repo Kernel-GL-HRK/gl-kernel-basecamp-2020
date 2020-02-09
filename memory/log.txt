@@ -1,30 +1,31 @@
-clang-format-9 -i kernel_memory.c
-make -C /lib/modules/5.3.0-26-generic/build M=/home/matthewzorin/Linux_Kernel/gl-kernel-basecamp-2020/memory modules
-make[1]: Entering directory '/usr/src/linux-headers-5.3.0-26-generic'
-  Building modules, stage 2.
-  MODPOST 1 modules
-make[1]: Leaving directory '/usr/src/linux-headers-5.3.0-26-generic'
-sudo insmod kernel_memory.ko
-lsmod | head -n 3
-Module                  Size  Used by
-kernel_memory          16384  0
-rfcomm                 81920  4
+Buffer size (bytes)      Memory         Allocation (ns)     Freeing (ns)        
 
-*--------------------------*kmalloc()*--------------------------*
-Buffer size (bytes)      Allocation (ns)     Freeing (ns)        
-20                       293                 150                 
-1236                     369                 174                 
-2333                     537                 240                 
-3304                     561                 281                 
-4797                     1213                196                 
-5166                     1119                220                 
-6484                     1648                293                 
-7529                     1248                271                 
-8360                     3288                729                 
-9578                     2913                653                 
+3792                     kernel         787                 431                 
+                         virtual        9592                2922                
 
-sudo rmmod kernel_memory.ko
-lsmod | head -n 3
-Module                  Size  Used by
-rfcomm                 81920  4
-ccm                    20480  3
+9017                     kernel         2947                727                 
+                         virtual        9898                2340                
+
+19881                    kernel         8011                789                 
+                         virtual        12223               2238                
+
+31703                    kernel         5581                899                 
+                         virtual        15957               2970                
+
+37263                    kernel         11096               962                 
+                         virtual        15483               3061                
+
+49005                    kernel         8536                656                 
+                         virtual        13608               2460                
+
+52023                    kernel         8718                635                 
+                         virtual        12779               2384                
+
+61594                    kernel         8534                642                 
+                         virtual        19025               3386                
+
+70464                    kernel         20678               1291                
+                         virtual        18856               3376                
+
+81730                    kernel         16941               913                 
+                         virtual        22022               4159                
