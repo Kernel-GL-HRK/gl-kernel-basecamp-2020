@@ -1,11 +1,8 @@
 clang-format-9 -i kernel_memory.c
 make -C /lib/modules/5.3.0-26-generic/build M=/home/matthewzorin/Linux_Kernel/gl-kernel-basecamp-2020/memory modules
 make[1]: Entering directory '/usr/src/linux-headers-5.3.0-26-generic'
-  CC [M]  /home/matthewzorin/Linux_Kernel/gl-kernel-basecamp-2020/memory/kernel_memory.o
   Building modules, stage 2.
   MODPOST 1 modules
-  CC      /home/matthewzorin/Linux_Kernel/gl-kernel-basecamp-2020/memory/kernel_memory.mod.o
-  LD [M]  /home/matthewzorin/Linux_Kernel/gl-kernel-basecamp-2020/memory/kernel_memory.ko
 make[1]: Leaving directory '/usr/src/linux-headers-5.3.0-26-generic'
 sudo insmod kernel_memory.ko
 lsmod | head -n 3
@@ -15,16 +12,17 @@ rfcomm                 81920  4
 
 *--------------------------*kmalloc()*--------------------------*
 Buffer size (bytes)      Allocation (ns)     Freeing (ns)        
-1024                     290                 274                 
-1024                     283                 166                 
-1024                     388                 211                 
-1024                     313                 208                 
-1024                     340                 193                 
-1024                     379                 228                 
-1024                     543                 386                 
-1024                     446                 311                 
-1024                     413                 255                 
-1024                     432                 292                 
+20                       293                 150                 
+1236                     369                 174                 
+2333                     537                 240                 
+3304                     561                 281                 
+4797                     1213                196                 
+5166                     1119                220                 
+6484                     1648                293                 
+7529                     1248                271                 
+8360                     3288                729                 
+9578                     2913                653                 
+
 sudo rmmod kernel_memory.ko
 lsmod | head -n 3
 Module                  Size  Used by

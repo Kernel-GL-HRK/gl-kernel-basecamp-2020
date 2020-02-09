@@ -18,5 +18,5 @@ uninstall:
 	lsmod | head -n 3
 format:
 	clang-format-9 -i kernel_memory.c
-#./checkpatch.pl --no-tree -f ./kernel_memory.c
+#	 ./checkpatch.pl --no-tree -f ./kernel_memory.c
 endif
