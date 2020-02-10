@@ -50,12 +50,17 @@ for (( i = 4; i <= $page_size; i *= 2)); do
         printf "%-25s%-15s%-20s%-20s\n" "" "virtual" ${vmalloc[0]} ${vmalloc[1]}
 done
 
-echo -e "\n\n\n*------------------------*get_free_pages*---------------------------*"
-printf "\n%-10s%-25s%-20s%-20s\n" "Order" "Buffer size (bytes)" "Allocation (ns)" "Freeing (ns)"
+echo -e "\n\n\n*----------------------*kmalloc & get_free_pages & vmalloc*----------------------*"
+printf "\n%-10s%-25s%-15s%-20s%-20s\n" "Order" "Buffer size (bytes)" "Memory" "Allocation (ns)" "Freeing (ns)"
 for (( i = 0; i < 10; ++i)); do
         echo $i > ${sys_dir}/page_order
+        echo $page_size > ${sys_dir}/alloc_size
+        kmalloc=( $(cat ${sys_dir}/kmalloc) )
         pages=( $(cat ${sys_dir}/pages) )
-        printf "\n%-10u%-25s%-20s%-20s\n" "$(cat ${sys_dir}/page_order)" $page_size ${pages[0]} ${pages[1]}
+        vmalloc=( $(cat ${sys_dir}/vmalloc) )
+        printf "\n%-35s%-15s%-20s%-20s\n" "" "kernel" ${kmalloc[0]} ${kmalloc[1]}
+        printf "%-10s%-25s%-15s%-20s%-20s\n" "$(cat ${sys_dir}/page_order)" "$(cat ${sys_dir}/alloc_size)" "pages" ${pages[0]} ${pages[1]}
+        printf "%-35s%-15s%-20s%-20s\n" "" "virtual" ${vmalloc[0]} ${vmalloc[1]}
         let "page_size *= 2"
 done
 
