@@ -6,6 +6,7 @@
 #include <linux/time.h>
 #include <linux/device.h>
 #include <linux/time64.h>
+#include <linux/gfp.h>
 
 #define CLASS_NAME "mm_test"
 #define TABLE_LENGTH 1024
@@ -13,9 +14,9 @@
 #define TEST1_BYTES 4096UL
 #define TEST2_BYTES 65536UL
 #define TEST3_BYTES 1048576UL
-#define TEST1_PAGES (TEST1_BYTES / PAGE_SIZE)
-#define TEST2_PAGES (TEST2_BYTES / PAGE_SIZE)
-#define TEST3_PAGES (TEST3_BYTES / PAGE_SIZE)
+#define TEST1_PAGES ((TEST1_BYTES / PAGE_SIZE) - 1)
+#define TEST2_PAGES ((TEST2_BYTES / PAGE_SIZE) - 1)
+#define TEST3_PAGES ((TEST3_BYTES / PAGE_SIZE) - 1)
 
 static char kmalloc_result[TABLE_LENGTH];
 static char vmalloc_result[TABLE_LENGTH];
@@ -23,6 +24,7 @@ static char kzalloc_result[TABLE_LENGTH];
 static char vzalloc_result[TABLE_LENGTH];
 static char kvmalloc_result[TABLE_LENGTH];
 static char kvzalloc_result[TABLE_LENGTH];
+static char get_free_pages_result[TABLE_LENGTH];
 
 static struct class *mm_test_class;
 
@@ -43,6 +45,7 @@ static ssize_t show_result(struct class *class,
 	strcat(buffer, vzalloc_result);
 	strcat(buffer, kvmalloc_result);
 	strcat(buffer, kvzalloc_result);
+	strcat(buffer, get_free_pages_result);
 	return strlen(buffer);
 }
 
@@ -376,6 +379,61 @@ static void check_kvzalloc(void)
 	strcat(kvzalloc_result, buf);
 }
 
+static void check_get_free_pages(void)
+{
+	struct timespec64 start, end;
+	unsigned long p;
+	long alloc_res, free_res;
+	char buf[BUF_LENGTH];
+
+	strcat(get_free_pages_result, "get_free_pages() test:\n");
+	strcat(get_free_pages_result, "buffer\talloc\tfree\n");
+	ktime_get_real_ts64(&start);
+	p = __get_free_pages(GFP_KERNEL, TEST1_PAGES);
+	ktime_get_real_ts64(&end);
+	start = timespec64_sub(end, start);
+	alloc_res = timespec64_to_ns(&start);
+
+	ktime_get_real_ts64(&start);
+	free_pages(p, TEST1_PAGES);
+	ktime_get_real_ts64(&end);
+	start = timespec64_sub(end, start);
+	free_res = timespec64_to_ns(&start);
+
+	sprintf(buf, "%lu\t%ld\t%ld\n", TEST1_BYTES, alloc_res, free_res);
+	strcat(get_free_pages_result, buf);
+
+	ktime_get_real_ts64(&start);
+	p = __get_free_pages(GFP_KERNEL, TEST2_PAGES);
+	ktime_get_real_ts64(&end);
+	start = timespec64_sub(end, start);
+	alloc_res = timespec64_to_ns(&start);
+
+	ktime_get_real_ts64(&start);
+	free_pages(p, TEST2_PAGES);
+	ktime_get_real_ts64(&end);
+	start = timespec64_sub(end, start);
+	free_res = timespec64_to_ns(&start);
+
+	sprintf(buf, "%lu\t%ld\t%ld\n", TEST2_BYTES, alloc_res, free_res);
+	strcat(get_free_pages_result, buf);
+
+	ktime_get_real_ts64(&start);
+	p = __get_free_pages(GFP_KERNEL, TEST3_PAGES);
+	ktime_get_real_ts64(&end);
+	start = timespec64_sub(end, start);
+	alloc_res = timespec64_to_ns(&start);
+
+	ktime_get_real_ts64(&start);
+	free_pages(p, TEST3_PAGES);
+	ktime_get_real_ts64(&end);
+	start = timespec64_sub(end, start);
+	free_res = timespec64_to_ns(&start);
+
+	sprintf(buf, "%lu\t%ld\t%ld\n", TEST3_BYTES, alloc_res, free_res);
+	strcat(get_free_pages_result, buf);
+}
+
 static int __init memory_init(void)
 {
 	int ret;
@@ -393,6 +451,7 @@ static int __init memory_init(void)
 	check_vzalloc();
 	check_kvmalloc();
 	check_kvzalloc();
+	check_get_free_pages();
 	return 0;
 }
 
