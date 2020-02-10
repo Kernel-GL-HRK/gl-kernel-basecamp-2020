@@ -8,7 +8,6 @@
 
 #define TIMEOUT 1000U
 #define MAX_HR_BUFF 64
-#define DOT_POS 9
 
 static u32 inter_sec = 0;
 static ktime_t time = 0;
