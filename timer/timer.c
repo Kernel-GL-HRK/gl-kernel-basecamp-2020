@@ -7,21 +7,11 @@
 #include <linux/ktime.h>
 
 #define TIMEOUT 1000U
-#define MAX_HR_BUFF 64
 
-static u32 inter_sec = 0;
-static ktime_t time = 0;
+static u32 inter_sec;
+static ktime_t time;
 
-static ssize_t inter_show(struct class *class, struct class_attribute *attr,
-			  char *buffer);
-static ssize_t time_show(struct class *class, struct class_attribute *attr,
-			 char *buffer);
-
-void inter_callback(struct timer_list *timer);
-
-static struct class *class_timer = NULL;
-CLASS_ATTR_RO(inter);
-CLASS_ATTR_RO(time);
+static void inter_callback(struct timer_list *timer);
 
 DEFINE_TIMER(inter_timer, inter_callback);
 static struct hrtimer hr_timer;
@@ -43,33 +33,36 @@ static ssize_t time_show(struct class *class, struct class_attribute *attr,
 	return strlen(buffer);
 }
 
-void inter_callback(struct timer_list *timer)
+static struct class *class_timer;
+CLASS_ATTR_RO(inter);
+CLASS_ATTR_RO(time);
+
+static void inter_callback(struct timer_list *timer)
 {
 	mod_timer(&inter_timer, jiffies + msecs_to_jiffies(TIMEOUT));
 	++inter_sec;
 }
 
-static int timer_init(void)
+static int __init timer_init(void)
 {
 	int ret;
 
 	class_timer = class_create(THIS_MODULE, "timer");
 	if (IS_ERR(class_timer)) {
 		ret = PTR_ERR(class_timer);
-		printk(KERN_ERR "timer: failed to create sysfs class: %d\n",
-		       ret);
+		pr_err("timer: failed to create sysfs class: %d\n", ret);
 		return ret;
 	}
 
 	ret = class_create_file(class_timer, &class_attr_inter);
 	if (ret) {
-		printk(KERN_ERR "timer: bad attribute inter create: %d\n", ret);
+		pr_err("timer: bad attribute inter create: %d\n", ret);
 		return ret;
 	}
 
 	ret = class_create_file(class_timer, &class_attr_time);
 	if (ret) {
-		printk(KERN_ERR "timer: bad attribute time create: %d\n", ret);
+		pr_err("timer: bad attribute time create: %d\n", ret);
 		return ret;
 	}
 
@@ -80,27 +73,28 @@ static int timer_init(void)
 	hrtimer_start(&hr_timer, KTIME_MAX, HRTIMER_MODE_REL);
 	time = hrtimer_cb_get_time(&hr_timer);
 
-	printk(KERN_INFO "timer: module loaded\n");
+	pr_info("timer: module loaded\n");
 	return 0;
 }
 
-static void timer_exit(void)
+static void __exit timer_exit(void)
 {
+	del_timer(&inter_timer);
+	hrtimer_cancel(&hr_timer);
+
 	if (class_timer) {
 		class_remove_file(class_timer, &class_attr_inter);
 		class_remove_file(class_timer, &class_attr_time);
 	}
 	class_destroy(class_timer);
 
-	del_timer(&inter_timer);
-	hrtimer_cancel(&hr_timer);
-
-	printk(KERN_INFO "timer: module unloaded\n");
+	pr_info("timer: module unloaded\n");
 }
 
 module_init(timer_init);
 module_exit(timer_exit);
 
 MODULE_LICENSE("GPL");
+MODULE_AUTHOR("Matvii Zorin");
 MODULE_DESCRIPTION("timer sysfs");
 MODULE_VERSION("0.1");
