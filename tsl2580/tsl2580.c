@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 #include <linux/module.h>
 #include <linux/device.h>
 #include <linux/i2c.h>
@@ -15,8 +16,11 @@ struct tsl2580_dev {
 static struct tsl2580_dev mydev;
 static struct class *tsl2580_class;
 
-static ssize_t who_am_i_show(struct class *class, struct class_attribute *attr, char *buf);
-static int tsl2580_probe(struct i2c_client *client, const struct i2c_device_id *id);
+static ssize_t who_am_i_show(struct class *class,
+			struct class_attribute *attr,
+			char *buf);
+static int tsl2580_probe(struct i2c_client *client,
+			const struct i2c_device_id *id);
 static int tsl2580_remove(struct i2c_client *client);
 
 static const struct i2c_device_id tsl2580_i2c_id[] = {
@@ -51,21 +55,25 @@ static int __must_check tsl2580_default_config(struct tsl2580_dev *dev)
 
 	if (!dev->client)
 		return -EINVAL;
-	ret = i2c_smbus_write_byte(dev->client, TSL2580_CMD_REG | TSL2580_TRNS_BLOCK | TSL2580_CTRL_REG);
+	ret = i2c_smbus_write_byte(dev->client,
+	TSL2580_CMD_REG| TSL2580_TRNS_BLOCK | TSL2580_CTRL_REG);
 	if (ret < 0)
 		return ret;
 	/* Enable TSL2580 */
-	ret = i2c_smbus_write_byte(dev->client, TSL2580_CTRL_POWER | TSL2580_CTRL_ADC_EN);
+	ret = i2c_smbus_write_byte(dev->client,
+	TSL2580_CTRL_POWER | TSL2580_CTRL_ADC_EN);
 	if (ret < 0)
 		return ret;
-	ret = i2c_smbus_write_byte(dev->client, TSL2580_CMD_REG | TSL2580_TRNS_BLOCK | TSL2580_TIMING_REG);
+	ret = i2c_smbus_write_byte(dev->client,
+	TSL2580_CMD_REG | TSL2580_TRNS_BLOCK | TSL2580_TIMING_REG);
 	if (ret < 0)
 		return ret;
 	/* 148 integration cycles by default */
 	ret = i2c_smbus_write_byte(dev->client, TSL2580_TIMING_148);
 	if (ret < 0)
 		return ret;
-	ret = i2c_smbus_write_byte(dev->client, TSL2580_CMD_REG | TSL2580_TRNS_BLOCK | TSL2580_ANALOG_REG);
+	ret = i2c_smbus_write_byte(dev->client,
+	TSL2580_CMD_REG | TSL2580_TRNS_BLOCK | TSL2580_ANALOG_REG);
 	if (ret < 0)
 		return ret;
 	/* 16x analog gain by default */
@@ -85,9 +93,10 @@ static int tsl2580_probe(struct i2c_client *client,
 	pr_info("tsl2580: i2c client address is 0x%X\n", client->addr);
 
 	mydev.client = client;
-	ret = i2c_smbus_write_byte(mydev.client, TSL2580_CMD_REG | TSL2580_TRNS_BLOCK | TSL2580_ID_REG);
+	ret = i2c_smbus_write_byte(mydev.client,
+	TSL2580_CMD_REG | TSL2580_TRNS_BLOCK | TSL2580_ID_REG);
 	if (ret < 0) {
-		pr_err("tsl2580: error %d occured writing to the device\n", ret);
+		pr_err("tsl2580: error %d writing to the device\n", ret);
 		return ret;
 	}
 	id = i2c_smbus_read_byte(mydev.client);
@@ -111,15 +120,18 @@ static int tsl2580_remove(struct i2c_client *client)
 }
 
 
-static ssize_t who_am_i_show(struct class *class, struct class_attribute *attr, char *buf)
+static ssize_t who_am_i_show(struct class *class,
+			struct class_attribute *attr,
+			char *buf)
 {
 	char *type;
 	u8 id;
 	s32 ret;
 
-	ret = i2c_smbus_write_byte(mydev.client, TSL2580_CMD_REG | TSL2580_TRNS_BLOCK | TSL2580_ID_REG);
+	ret = i2c_smbus_write_byte(mydev.client,
+	TSL2580_CMD_REG | TSL2580_TRNS_BLOCK | TSL2580_ID_REG);
 	if (ret < 0) {
-		pr_err("tsl2580: error %d occured writing to the device\n", ret);
+		pr_err("tsl2580: error %d writing to the device\n", ret);
 		return ret;
 	}
 	
@@ -142,7 +154,7 @@ static int __init tsl2580_init(void)
 
 	ret = i2c_add_driver(&tsl2580_i2c_driver);
 	if (ret < 0) {
-		pr_err("tsl2580: failed to add an i2c driver; error %d\n", ret);
+		pr_err("tsl2580: error %d adding an i2c driver\n", ret);
 		return ret;
 	}
 	pr_info("tsl2580: i2c driver created\n");
@@ -150,13 +162,14 @@ static int __init tsl2580_init(void)
 	tsl2580_class = class_create(THIS_MODULE, TSL2580_CLASS_NAME);
 	if (IS_ERR(tsl2580_class)) {
 		ret = PTR_ERR(tsl2580_class);
-		pr_err("tsl2580: failed to create a class; error %ld\n", PTR_ERR(tsl2580_class));
+		pr_err("tsl2580: failed to create a class; error %ld\n",
+		PTR_ERR(tsl2580_class));
 		goto err;
 	}
 	
 	ret = class_create_file(tsl2580_class, &class_attr_who_am_i);
 	if (ret < 0) {
-		pr_err("tsl2580: failed to create a who_am_i class attribute; error %d\n", ret);
+		pr_err("tsl2580: error %d creating a who_am_i attribute\n", ret);
 		goto err;
 	}
 
