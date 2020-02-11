@@ -16,7 +16,11 @@ struct tsl2580_dev {
 static struct tsl2580_dev mydev;
 static struct class *tsl2580_class;
 
+static s32 tsl2580_read_adc0(struct tsl2580_dev *dev);
 static ssize_t who_am_i_show(struct class *class,
+			struct class_attribute *attr,
+			char *buf);
+static ssize_t adc0_show(struct class *class,
 			struct class_attribute *attr,
 			char *buf);
 static int tsl2580_probe(struct i2c_client *client,
@@ -48,6 +52,30 @@ static struct i2c_driver tsl2580_i2c_driver = {
 
 static struct class_attribute class_attr_who_am_i =
 				__ATTR(who_am_i, 00644, who_am_i_show, NULL);
+static struct class_attribute class_attr_adc0 =
+				__ATTR(adc0, 00644, adc0_show, NULL);
+
+static s32 tsl2580_read_adc0(struct tsl2580_dev *dev)
+{
+	s32 low, high;
+
+	low = i2c_smbus_write_byte(dev->client,
+	TSL2580_CMD_REG | TSL2580_TRNS_BLOCK | TSL2580_DATA0LOW_REG);
+	if (low < 0)
+		return low;
+	low = i2c_smbus_read_byte(dev->client);
+	if (low < 0)
+		return low;
+	high = i2c_smbus_write_byte(dev->client,
+	TSL2580_CMD_REG | TSL2580_TRNS_BLOCK | TSL2580_DATA0HIGH_REG);
+	if (high < 0)
+		return low;
+	high = i2c_smbus_read_byte(dev->client);
+	if (high < 0)
+		return high;
+	/* FIXME: assumes little endian */
+	return (low | (high << 16));
+}
 
 static int __must_check tsl2580_default_config(struct tsl2580_dev *dev)
 {
@@ -148,6 +176,22 @@ static ssize_t who_am_i_show(struct class *class,
 	return ret;
 }
 
+static ssize_t adc0_show(struct class *class,
+			struct class_attribute *attr,
+			char *buf)
+{
+	s32 res;
+
+	res = tsl2580_read_adc0(&mydev);
+	if (res < 0) {
+		pr_err("tsl2580: error %d reading adc0\n", res);
+		return res;
+	}
+	res = sprintf(buf, "%d\n", res);
+	return res;
+}
+
+
 static int __init tsl2580_init(void)
 {
 	int ret;
@@ -172,12 +216,18 @@ static int __init tsl2580_init(void)
 		pr_err("tsl2580: error %d creating a who_am_i attribute\n", ret);
 		goto err;
 	}
+	ret = class_create_file(tsl2580_class, &class_attr_adc0);
+	if (ret < 0) {
+		pr_err("tsl2580: error %d creating a adc0 attribute\n", ret);
+		goto err;
+	}
 
 	pr_info("tsl2580: init succeded\n");
 
 	return 0;
 err:
 	class_remove_file(tsl2580_class, &class_attr_who_am_i);
+	class_remove_file(tsl2580_class, &class_attr_adc0);
 	class_destroy(tsl2580_class);
 	return ret;
 }
@@ -186,6 +236,7 @@ static void __exit tsl2580_exit(void)
 {
 	pr_info("tsl2580: enter exit\n");
 	class_remove_file(tsl2580_class, &class_attr_who_am_i);
+	class_remove_file(tsl2580_class, &class_attr_adc0);
 	class_destroy(tsl2580_class);
 	i2c_del_driver(&tsl2580_i2c_driver);
 	pr_info("tsl2580: exit\n");
