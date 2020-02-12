@@ -1,0 +1,27 @@
+Content of the directory /sys/firmware/devicetree/base/soc/i2c@1c2ac00/gl_mpu6050@68
+
+total 0
+-r--r--r-- 1 root root 11 Feb 12 12:18 compatible
+-r--r--r-- 1 root root 11 Feb 12 12:18 name
+-r--r--r-- 1 root root  4 Feb 12 12:18 reg
+-r--r--r-- 1 root root  5 Feb 12 12:18 status
+
+Device tree info of mpu6050:
+	compatible: gl,mpu6050
+	name: gl_mpu6050
+	reg: h
+	status: okay
+
+Driver install started...
+
+This driver in lsmod log:
+mpu6050                16384  0
+
+dmesg log:
+[ 3754.278453] mpu6050: i2c client address is 0x68
+[ 3754.278932] mpu6050: i2c mpu6050 device found, WHO_AM_I register value = 0x68
+[ 3754.281778] mpu6050: i2c driver probed
+[ 3754.282091] mpu6050: module loaded
+[ 3754.351559] mpu6050: i2c driver removed
+[ 3754.351666] mpu6050: module unloaded
+
