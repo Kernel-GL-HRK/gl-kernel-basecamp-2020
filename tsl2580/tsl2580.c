@@ -37,6 +37,9 @@
 
 struct tsl2580_dev {
 	struct i2c_client *client;
+	u16 data_adc0;
+	u16 data_adc1;
+	u16 data_lux;
 };
 
 static struct tsl2580_dev mydev;
@@ -326,6 +329,7 @@ static ssize_t adc0_show(struct class *class,
 		pr_err("tsl2580: error %d reading adc0\n", res);
 		return res;
 	}
+	mydev.data_adc0 = (u16)res;
 	res = sprintf(buf, "%d\n", res);
 	return res;
 }
@@ -341,6 +345,7 @@ static ssize_t adc1_show(struct class *class,
 		pr_err("tsl2580: error %d reading adc0\n", res);
 		return res;
 	}
+	mydev.data_adc1 = (u16)res;
 	res = sprintf(buf, "%d\n", res);
 	return res;
 }
@@ -356,6 +361,7 @@ static ssize_t lux_show(struct class *class,
 		pr_err("tsl2580: error %d reading lux\n", res);
 		return res;
 	}
+	mydev.data_lux = (u16)res;
 	res = sprintf(buf, "%d\n", res);
 	
 	return res;
