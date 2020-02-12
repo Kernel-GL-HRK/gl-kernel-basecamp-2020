@@ -1,0 +1,19 @@
+/dts-v1/;
+/plugin/;
+
+/ {
+        fragment@0,1 {
+                target = <&i2c0>;
+                __overlay__ {
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+                        gl_mpu6050: gl_mpu6050@68 {
+				status = "okay";
+
+                                compatible = "gl,mpu6050";
+                                reg = <0x68>;
+                        };
+                };
+        };
+};
