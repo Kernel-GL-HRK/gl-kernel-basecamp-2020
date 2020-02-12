@@ -48,7 +48,7 @@
 
 /* Analog register gain options */
 #define TSL2580_ANALOG_GAIN_1X 0x0
-#define TSL2580_ANALOG_GAIN_2X 0x1
+#define TSL2580_ANALOG_GAIN_8X 0x1
 #define TSL2580_ANALOG_GAIN_16X 0x2
 #define TSL2580_ANALOG_GAIN_111X 0x3
 
