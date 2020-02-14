@@ -49,7 +49,8 @@ static struct class *tsl2580_class;
 static s32 tsl2580_read_adc0(struct tsl2580_dev *dev);
 static s32 tsl2580_read_adc1(struct tsl2580_dev *dev);
 static s32 tsl2580_read_lux(struct tsl2580_dev *dev);
-static s32 tsl2580_read_data(struct tsl2580_dev *dev);
+static s32 tsl2580_calc_lux(struct tsl2580_dev *dev, s32 low, s32 high);
+static int tsl2580_read_data(struct tsl2580_dev *dev);
 static ssize_t who_am_i_show(struct class *class,
 			struct class_attribute *attr,
 			char *buf);
@@ -101,17 +102,22 @@ static struct class_attribute class_attr_lux =
 static s32 tsl2580_read_lux(struct tsl2580_dev *dev)
 {
 	s32 low, high;
-	u8 gain, ic;
-	u32 sc0, sc1, ratio;
-
-	low = high = gain = ic = sc0 = sc1 = ratio = 0;
-
 	low = tsl2580_read_adc0(dev);
 	if (low < 0)
 		return low;
 	high = tsl2580_read_adc1(dev);
 	if (high < 0)
 		return high;
+	return tsl2580_calc_lux(dev, low, high);
+}
+
+static s32 tsl2580_calc_lux(struct tsl2580_dev *dev, s32 low, s32 high)
+{
+	u8 gain, ic;
+	u32 sc0, sc1, ratio;
+
+	gain = ic = sc0 = sc1 = ratio = 0;
+
 	gain = i2c_smbus_write_byte(dev->client,
 	TSL2580_CMD_REG | TSL2580_TRNS_BLOCK | TSL2580_ANALOG_REG);
 	if (gain < 0)
@@ -221,6 +227,25 @@ static s32 tsl2580_read_adc0(struct tsl2580_dev *dev)
 	return (low | (high << 16));
 }
 
+static int tsl2580_read_data(struct tsl2580_dev *dev)
+{
+	s32 res;
+
+	res = tsl2580_read_adc0(dev);
+	if (IS_ERR_VALUE(res))
+		return res;
+	mydev.data_adc0 = res;
+	res = tsl2580_read_adc1(dev);
+	if (IS_ERR_VALUE(res))
+		return res;
+	mydev.data_adc1 = res;
+	res = tsl2580_calc_lux(dev, mydev.data_adc0, mydev.data_adc1);
+	if (IS_ERR_VALUE(res))
+		return res;
+	mydev.data_lux = res;
+	return 0;
+}
+
 static int __must_check tsl2580_default_config(struct tsl2580_dev *dev)
 {
 	int ret;
@@ -317,13 +342,12 @@ static ssize_t adc0_show(struct class *class,
 {
 	s32 res;
 
-	res = tsl2580_read_adc0(&mydev);
-	if (res < 0) {
+	res = tsl2580_read_data(&mydev);
+	if (IS_ERR_VALUE(res)) {
 		pr_err("tsl2580: error %d reading adc0\n", res);
 		return res;
 	}
-	mydev.data_adc0 = (u16)res;
-	res = sprintf(buf, "%d\n", res);
+	res = sprintf(buf, "%d\n", mydev.data_adc0);
 	return res;
 }
 
@@ -333,13 +357,12 @@ static ssize_t adc1_show(struct class *class,
 {
 	s32 res;
 
-	res = tsl2580_read_adc1(&mydev);
-	if (res < 0) {
+	res = tsl2580_read_data(&mydev);
+	if (IS_ERR_VALUE(res)) {
 		pr_err("tsl2580: error %d reading adc0\n", res);
 		return res;
 	}
-	mydev.data_adc1 = (u16)res;
-	res = sprintf(buf, "%d\n", res);
+	res = sprintf(buf, "%d\n", mydev.data_adc1);
 	return res;
 }
 
@@ -349,13 +372,12 @@ static ssize_t lux_show(struct class *class,
 {
 	s32 res;
 
-	res = tsl2580_read_lux(&mydev);
-	if (res < 0) {
+	res = tsl2580_read_data(&mydev);
+	if (IS_ERR_VALUE(res)) {
 		pr_err("tsl2580: error %d reading lux\n", res);
 		return res;
 	}
-	mydev.data_lux = (u16)res;
-	res = sprintf(buf, "%d\n", res);
+	res = sprintf(buf, "%d\n", mydev.data_lux);
 	
 	return res;
 }
