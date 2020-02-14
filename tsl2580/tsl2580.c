@@ -51,6 +51,7 @@ static s32 tsl2580_read_adc1(struct tsl2580_dev *dev);
 static s32 tsl2580_read_lux(struct tsl2580_dev *dev);
 static s32 tsl2580_calc_lux(struct tsl2580_dev *dev, s32 low, s32 high);
 static int tsl2580_read_data(struct tsl2580_dev *dev);
+static int tsl2580_init_sysfs(void);
 static ssize_t who_am_i_show(struct class *class,
 			struct class_attribute *attr,
 			char *buf);
@@ -281,6 +282,47 @@ static int __must_check tsl2580_default_config(struct tsl2580_dev *dev)
 	return 0;
 }
 
+static int tsl2580_init_sysfs(void)
+{
+	int ret;
+
+	tsl2580_class = class_create(THIS_MODULE, TSL2580_CLASS_NAME);
+	if (IS_ERR(tsl2580_class)) {
+		ret = PTR_ERR(tsl2580_class);
+		pr_err("tsl2580: failed to create a class; error %d\n", ret);
+		goto err;
+	}
+	ret = class_create_file(tsl2580_class, &class_attr_who_am_i);
+	if (ret < 0) {
+		pr_err("tsl2580: error %d creating a who_am_i attribute\n", ret);
+		goto err;
+	}
+	ret = class_create_file(tsl2580_class, &class_attr_adc0);
+	if (ret < 0) {
+		pr_err("tsl2580: error %d creating an adc0 attribute\n", ret);
+		goto err;
+	}
+	ret = class_create_file(tsl2580_class, &class_attr_adc1);
+	if (ret < 0) {
+		pr_err("tsl2580: error %d creating an adc1 attribute\n", ret);
+		goto err;
+	}
+	ret = class_create_file(tsl2580_class, &class_attr_lux);
+	if (ret < 0) {
+		pr_err("tsl2580: error %d creating a lux attribute\n", ret);
+		goto err;
+	}
+
+	return 0;
+err:
+	class_remove_file(tsl2580_class, &class_attr_who_am_i);
+	class_remove_file(tsl2580_class, &class_attr_adc0);
+	class_remove_file(tsl2580_class, &class_attr_adc1);
+	class_remove_file(tsl2580_class, &class_attr_lux);
+	class_destroy(tsl2580_class);
+	return ret;
+}
+
 static int tsl2580_probe(struct i2c_client *client,
 			const struct i2c_device_id *device_id)
 {
@@ -308,6 +350,11 @@ static int tsl2580_probe(struct i2c_client *client,
 		pr_err("tsl2580: failed to configure the device\n");
 		return ret;
 	}
+	ret = tsl2580_init_sysfs();
+	if (IS_ERR_VALUE(ret)) {
+		pr_err("tsl2580: error %d initializing sysfs\n", ret);
+		return ret;
+	}
 	return 0;
 }
 
@@ -323,7 +370,6 @@ static ssize_t who_am_i_show(struct class *class,
 			char *buf)
 {
 	char *type;
-	s32 ret;
 	
 	if (mydev.dev_id == TSL2580_LOW_ID)
 		type = "2580\n";
@@ -331,9 +377,8 @@ static ssize_t who_am_i_show(struct class *class,
 		type = "2581\n";
 	else
 		type = "Unknow device type\n";
-	ret = sprintf(buf, type);
 
-	return ret;
+	return sprintf(buf, type);
 }
 
 static ssize_t adc0_show(struct class *class,
@@ -387,49 +432,15 @@ static int __init tsl2580_init(void)
 	int ret;
 
 	ret = i2c_add_driver(&tsl2580_i2c_driver);
-	if (ret < 0) {
+	if (IS_ERR_VALUE(ret)) {
 		pr_err("tsl2580: error %d adding an i2c driver\n", ret);
 		return ret;
 	}
 	pr_info("tsl2580: i2c driver created\n");
 
-	tsl2580_class = class_create(THIS_MODULE, TSL2580_CLASS_NAME);
-	if (IS_ERR(tsl2580_class)) {
-		ret = PTR_ERR(tsl2580_class);
-		pr_err("tsl2580: failed to create a class; error %d\n", ret);
-		goto err;
-	}
-	ret = class_create_file(tsl2580_class, &class_attr_who_am_i);
-	if (ret < 0) {
-		pr_err("tsl2580: error %d creating a who_am_i attribute\n", ret);
-		goto err;
-	}
-	ret = class_create_file(tsl2580_class, &class_attr_adc0);
-	if (ret < 0) {
-		pr_err("tsl2580: error %d creating an adc0 attribute\n", ret);
-		goto err;
-	}
-	ret = class_create_file(tsl2580_class, &class_attr_adc1);
-	if (ret < 0) {
-		pr_err("tsl2580: error %d creating an adc1 attribute\n", ret);
-		goto err;
-	}
-	ret = class_create_file(tsl2580_class, &class_attr_lux);
-	if (ret < 0) {
-		pr_err("tsl2580: error %d creating a lux attribute\n", ret);
-		goto err;
-	}
-
 	pr_info("tsl2580: init succeded\n");
 
 	return 0;
-err:
-	class_remove_file(tsl2580_class, &class_attr_who_am_i);
-	class_remove_file(tsl2580_class, &class_attr_adc0);
-	class_remove_file(tsl2580_class, &class_attr_adc1);
-	class_remove_file(tsl2580_class, &class_attr_lux);
-	class_destroy(tsl2580_class);
-	return ret;
 }
 
 static void __exit tsl2580_exit(void)
