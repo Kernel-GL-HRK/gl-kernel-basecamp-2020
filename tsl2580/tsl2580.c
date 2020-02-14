@@ -37,6 +37,7 @@
 
 struct tsl2580_dev {
 	struct i2c_client *client;
+	u8 dev_id;
 	u16 data_adc0;
 	u16 data_adc1;
 	u16 data_lux;
@@ -48,6 +49,7 @@ static struct class *tsl2580_class;
 static s32 tsl2580_read_adc0(struct tsl2580_dev *dev);
 static s32 tsl2580_read_adc1(struct tsl2580_dev *dev);
 static s32 tsl2580_read_lux(struct tsl2580_dev *dev);
+static s32 tsl2580_read_data(struct tsl2580_dev *dev);
 static ssize_t who_am_i_show(struct class *class,
 			struct class_attribute *attr,
 			char *buf);
@@ -275,6 +277,7 @@ static int tsl2580_probe(struct i2c_client *client,
 		pr_warn("tsl2580: wrong device id\n");
 		return -EINVAL;
 	}
+	mydev.dev_id = id;
 	ret = tsl2580_default_config(&mydev);
 	if (ret < 0) {
 		pr_err("tsl2580: failed to configure the device\n");
@@ -295,21 +298,11 @@ static ssize_t who_am_i_show(struct class *class,
 			char *buf)
 {
 	char *type;
-	u8 id;
 	s32 ret;
-
-	ret = i2c_smbus_write_byte(mydev.client,
-	TSL2580_CMD_REG | TSL2580_TRNS_BLOCK | TSL2580_ID_REG);
-	if (ret < 0) {
-		pr_err("tsl2580: error %d writing to the device\n", ret);
-		return ret;
-	}
 	
-	id = i2c_smbus_read_byte(mydev.client);
-	id &= 0xF0;
-	if (id == TSL2580_LOW_ID)
+	if (mydev.dev_id == TSL2580_LOW_ID)
 		type = "2580\n";
-	else if (id == TSL2581_LOW_ID)
+	else if (mydev.dev_id == TSL2581_LOW_ID)
 		type = "2581\n";
 	else
 		type = "Unknow device type\n";
@@ -381,7 +374,7 @@ static int __init tsl2580_init(void)
 	tsl2580_class = class_create(THIS_MODULE, TSL2580_CLASS_NAME);
 	if (IS_ERR(tsl2580_class)) {
 		ret = PTR_ERR(tsl2580_class);
-		pr_err("tsl2580: failed to create a class; error %ld\n", ret);
+		pr_err("tsl2580: failed to create a class; error %d\n", ret);
 		goto err;
 	}
 	ret = class_create_file(tsl2580_class, &class_attr_who_am_i);
