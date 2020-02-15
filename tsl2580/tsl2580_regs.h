@@ -63,7 +63,7 @@
 
 /* Interrupt register persistance select */
 #define TSL2580_INT_PRST_ADC 0x00
-#define TSL2580_INT_PRST_THL 0x01
+#define TSL2580_INT_PRST_TH 0x01
 #define TSL2580_INT_PRST_2 0x02
 #define TSL2580_INT_PRST_3 0x03
 #define TSL2580_INT_PRST_4 0x04

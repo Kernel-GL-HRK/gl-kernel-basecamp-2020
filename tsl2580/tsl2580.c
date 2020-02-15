@@ -42,6 +42,10 @@
 #define ODFN_B5C 0x0000 /* 0.00 * 2 ^ LUX_SCALE */
 #define ODFN_M5C 0x0000 /* 0.00 * 2 ^ LUX_SCALE */
 
+/* Random threashold values for interrupt */
+#define INT_LOW_TH 500
+#define INT_HIGH_TH 10000
+
 static u64 read_threashold = HZ;
 
 struct tsl2580_dev {
@@ -331,7 +335,44 @@ static int __must_check tsl2580_default_config(struct tsl2580_dev *dev)
 	ret = i2c_smbus_write_byte(dev->client, TSL2580_ANALOG_GAIN_16X);
 	if (IS_ERR_VALUE(ret))
 		return ret;
-
+	/* Interrupt config */
+	ret = i2c_smbus_write_byte(dev->client,
+	TSL2580_CMD_REG | TSL2580_TRNS_BLOCK | TSL2580_INT_REG);
+	if (IS_ERR_VALUE(ret))
+		return ret;
+	ret = i2c_smbus_write_byte(dev->client,
+	TSL2580_INT_CTRL_LEVEL | TSL2580_INT_PRST_TH);
+	if (IS_ERR_VALUE(ret))
+		return ret;
+	ret = i2c_smbus_write_byte(dev->client,
+	TSL2580_CMD_REG | TSL2580_TRNS_BLOCK | TSL2580_INT_THLLOW_REG);
+	if (IS_ERR_VALUE(ret))
+		return ret;
+	ret = i2c_smbus_write_byte(dev->client, INT_LOW_TH & 0xFF);
+	if (IS_ERR_VALUE(ret))
+		return ret;
+	ret = i2c_smbus_write_byte(dev->client,
+	TSL2580_CMD_REG | TSL2580_TRNS_BLOCK | TSL2580_INT_THLHIGH_REG);
+	if (IS_ERR_VALUE(ret))
+		return ret;
+	ret = i2c_smbus_write_byte(dev->client, (INT_LOW_TH >> 8));
+	if (IS_ERR_VALUE(ret))
+		return ret;
+	ret = i2c_smbus_write_byte(dev->client,
+	TSL2580_CMD_REG | TSL2580_TRNS_BLOCK | TSL2580_INT_THHLOW_REG);
+	if (IS_ERR_VALUE(ret))
+		return ret;
+	ret = i2c_smbus_write_byte(dev->client, (INT_HIGH_TH & 0xFF));
+	if (IS_ERR_VALUE(ret))
+		return ret;
+	ret = i2c_smbus_write_byte(dev->client,
+	TSL2580_CMD_REG | TSL2580_TRNS_BLOCK | TSL2580_INT_THHHIGH_REG);
+	if (IS_ERR_VALUE(ret))
+		return ret;
+	ret = i2c_smbus_write_byte(dev->client, (INT_HIGH_TH >> 8));
+	if (IS_ERR_VALUE(ret))
+		return ret;
+	
 	return 0;
 }
 
