@@ -4,6 +4,9 @@
 #include <linux/i2c.h>
 #include <linux/sysfs.h>
 #include <linux/string.h>
+#include <linux/kthread.h>
+#include <linux/wait.h>
+#include <asm/atomic.h>
 
 #include "tsl2580_regs.h"
 
@@ -41,6 +44,11 @@ struct tsl2580_dev {
 	u16 data_adc0;
 	u16 data_adc1;
 	u16 data_lux;
+	struct task_struct *read_data_task;
+	wait_queue_head_t data_access_queue;
+	atomic_t data_access_state;
+	atomic_t thread_stop;
+	struct completion data_access_completion;
 };
 
 static struct tsl2580_dev mydev;
@@ -51,6 +59,7 @@ static s32 tsl2580_read_adc1(struct tsl2580_dev *dev);
 static s32 tsl2580_read_lux(struct tsl2580_dev *dev);
 static s32 tsl2580_calc_lux(struct tsl2580_dev *dev, s32 low, s32 high);
 static int tsl2580_read_data(struct tsl2580_dev *dev);
+static int tsl2580_read_task(void *data);
 static int tsl2580_init_sysfs(void);
 static ssize_t who_am_i_show(struct class *class,
 			struct class_attribute *attr,
@@ -151,6 +160,7 @@ static s32 tsl2580_calc_lux(struct tsl2580_dev *dev, s32 low, s32 high)
 	case TSL2580_ANALOG_GAIN_16X:
 		sc0 = sc0 >> 4;
 		sc1 = sc0;
+		break;
 	case TSL2580_ANALOG_GAIN_111X:
 		sc1 = sc0 / ADC1_SCALE_111X;
 		sc0 = sc0 / ADC0_SCALE_111X;
@@ -202,7 +212,7 @@ static s32 tsl2580_read_adc1(struct tsl2580_dev *dev)
 	if (high < 0)
 		return high;
 	/* FIXME: assumes little endian */
-	return (low | (high << 16));
+	return (low | (high << 8));
 
 }
 
@@ -225,7 +235,7 @@ static s32 tsl2580_read_adc0(struct tsl2580_dev *dev)
 	if (high < 0)
 		return high;
 	/* FIXME: assumes little endian */
-	return (low | (high << 16));
+	return (low | (high << 8));
 }
 
 static int tsl2580_read_data(struct tsl2580_dev *dev)
@@ -247,6 +257,25 @@ static int tsl2580_read_data(struct tsl2580_dev *dev)
 	return 0;
 }
 
+static int tsl2580_read_task(void *data)
+{
+	int ret;
+
+	while (!atomic_read(&mydev.thread_stop)) {
+		wait_event(mydev.data_access_queue, atomic_read(&mydev.data_access_state));
+		if (atomic_read(&mydev.thread_stop))
+			break;
+
+		ret = tsl2580_read_data(&mydev);
+		if (IS_ERR_VALUE(ret))
+			return ret;
+
+		complete_all(&mydev.data_access_completion);
+		atomic_set(&mydev.data_access_state, 0);
+	}
+	return 0;
+}
+
 static int __must_check tsl2580_default_config(struct tsl2580_dev *dev)
 {
 	int ret;
@@ -255,28 +284,28 @@ static int __must_check tsl2580_default_config(struct tsl2580_dev *dev)
 		return -EINVAL;
 	ret = i2c_smbus_write_byte(dev->client,
 	TSL2580_CMD_REG| TSL2580_TRNS_BLOCK | TSL2580_CTRL_REG);
-	if (ret < 0)
+	if (IS_ERR_VALUE(ret))
 		return ret;
 	/* Enable TSL2580 */
 	ret = i2c_smbus_write_byte(dev->client,
 	TSL2580_CTRL_POWER | TSL2580_CTRL_ADC_EN);
-	if (ret < 0)
+	if (IS_ERR_VALUE(ret))
 		return ret;
 	ret = i2c_smbus_write_byte(dev->client,
 	TSL2580_CMD_REG | TSL2580_TRNS_BLOCK | TSL2580_TIMING_REG);
-	if (ret < 0)
+	if (IS_ERR_VALUE(ret))
 		return ret;
 	/* 148 integration cycles by default */
 	ret = i2c_smbus_write_byte(dev->client, TSL2580_TIMING_148);
-	if (ret < 0)
+	if (IS_ERR_VALUE(ret))
 		return ret;
 	ret = i2c_smbus_write_byte(dev->client,
 	TSL2580_CMD_REG | TSL2580_TRNS_BLOCK | TSL2580_ANALOG_REG);
-	if (ret < 0)
+	if (IS_ERR_VALUE(ret))
 		return ret;
 	/* 16x analog gain by default */
 	ret = i2c_smbus_write_byte(dev->client, TSL2580_ANALOG_GAIN_16X);
-	if (ret < 0)
+	if (IS_ERR_VALUE(ret))
 		return ret;
 
 	return 0;
@@ -293,22 +322,22 @@ static int tsl2580_init_sysfs(void)
 		goto err;
 	}
 	ret = class_create_file(tsl2580_class, &class_attr_who_am_i);
-	if (ret < 0) {
+	if (IS_ERR_VALUE(ret)) {
 		pr_err("tsl2580: error %d creating a who_am_i attribute\n", ret);
 		goto err;
 	}
 	ret = class_create_file(tsl2580_class, &class_attr_adc0);
-	if (ret < 0) {
+	if (IS_ERR_VALUE(ret)) {
 		pr_err("tsl2580: error %d creating an adc0 attribute\n", ret);
 		goto err;
 	}
 	ret = class_create_file(tsl2580_class, &class_attr_adc1);
-	if (ret < 0) {
+	if (IS_ERR_VALUE(ret)) {
 		pr_err("tsl2580: error %d creating an adc1 attribute\n", ret);
 		goto err;
 	}
 	ret = class_create_file(tsl2580_class, &class_attr_lux);
-	if (ret < 0) {
+	if (IS_ERR_VALUE(ret)) {
 		pr_err("tsl2580: error %d creating a lux attribute\n", ret);
 		goto err;
 	}
@@ -334,7 +363,7 @@ static int tsl2580_probe(struct i2c_client *client,
 	mydev.client = client;
 	ret = i2c_smbus_write_byte(mydev.client,
 	TSL2580_CMD_REG | TSL2580_TRNS_BLOCK | TSL2580_ID_REG);
-	if (ret < 0) {
+	if (IS_ERR_VALUE(ret)) {
 		pr_err("tsl2580: error %d writing to the device\n", ret);
 		return ret;
 	}
@@ -346,7 +375,7 @@ static int tsl2580_probe(struct i2c_client *client,
 	}
 	mydev.dev_id = id;
 	ret = tsl2580_default_config(&mydev);
-	if (ret < 0) {
+	if (IS_ERR_VALUE(ret)) {
 		pr_err("tsl2580: failed to configure the device\n");
 		return ret;
 	}
@@ -355,12 +384,24 @@ static int tsl2580_probe(struct i2c_client *client,
 		pr_err("tsl2580: error %d initializing sysfs\n", ret);
 		return ret;
 	}
+	init_completion(&mydev.data_access_completion);
+	init_waitqueue_head(&mydev.data_access_queue);
+	atomic_set(&mydev.data_access_state, 0);
+	atomic_set(&mydev.thread_stop, 0);
+	mydev.read_data_task = kthread_run(tsl2580_read_task, NULL, "tsl2580_read_thread");
 	return 0;
 }
 
 static int tsl2580_remove(struct i2c_client *client)
 {
-	pr_info("tsl2580: remove\n");
+	pr_info("tsl2580: remove start\n");
+	if (mydev.read_data_task) {
+		atomic_set(&mydev.thread_stop, 1);
+		atomic_set(&mydev.data_access_state, 1);
+		wake_up(&mydev.data_access_queue);
+	}
+	pr_info("tsl2580: remove end\n");
+
 	return 0;
 }
 
@@ -386,13 +427,14 @@ static ssize_t adc0_show(struct class *class,
 			char *buf)
 {
 	s32 res;
-
-	res = tsl2580_read_data(&mydev);
-	if (IS_ERR_VALUE(res)) {
-		pr_err("tsl2580: error %d reading adc0\n", res);
-		return res;
+	
+	if (atomic_read(&mydev.data_access_state) == 0) {
+		atomic_set(&mydev.data_access_state, 1);
+		wake_up(&mydev.data_access_queue);
 	}
+	wait_for_completion(&mydev.data_access_completion);
 	res = sprintf(buf, "%d\n", mydev.data_adc0);
+
 	return res;
 }
 
@@ -402,12 +444,14 @@ static ssize_t adc1_show(struct class *class,
 {
 	s32 res;
 
-	res = tsl2580_read_data(&mydev);
-	if (IS_ERR_VALUE(res)) {
-		pr_err("tsl2580: error %d reading adc0\n", res);
-		return res;
+
+	if (atomic_read(&mydev.data_access_state) == 0) {
+		atomic_set(&mydev.data_access_state, 1);
+		wake_up(&mydev.data_access_queue);
 	}
+	wait_for_completion(&mydev.data_access_completion);
 	res = sprintf(buf, "%d\n", mydev.data_adc1);
+
 	return res;
 }
 
@@ -417,11 +461,11 @@ static ssize_t lux_show(struct class *class,
 {
 	s32 res;
 
-	res = tsl2580_read_data(&mydev);
-	if (IS_ERR_VALUE(res)) {
-		pr_err("tsl2580: error %d reading lux\n", res);
-		return res;
+	if (atomic_read(&mydev.data_access_state) == 0) {
+		atomic_set(&mydev.data_access_state, 1);
+		wake_up(&mydev.data_access_queue);
 	}
+	wait_for_completion(&mydev.data_access_completion);
 	res = sprintf(buf, "%d\n", mydev.data_lux);
 	
 	return res;
