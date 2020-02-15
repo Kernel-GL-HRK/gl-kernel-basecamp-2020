@@ -7,6 +7,7 @@
 #include <linux/kthread.h>
 #include <linux/wait.h>
 #include <asm/atomic.h>
+#include <linux/mutex.h>
 
 #include "tsl2580_regs.h"
 
@@ -49,6 +50,7 @@ struct tsl2580_dev {
 	atomic_t data_access_state;
 	atomic_t thread_stop;
 	struct completion data_access_completion;
+	struct mutex data_access_mutex;
 };
 
 static struct tsl2580_dev mydev;
@@ -266,7 +268,9 @@ static int tsl2580_read_task(void *data)
 		if (atomic_read(&mydev.thread_stop))
 			break;
 
+		mutex_lock(&mydev.data_access_mutex);
 		ret = tsl2580_read_data(&mydev);
+		mutex_unlock(&mydev.data_access_mutex);
 		if (IS_ERR_VALUE(ret))
 			return ret;
 
@@ -384,6 +388,7 @@ static int tsl2580_probe(struct i2c_client *client,
 		pr_err("tsl2580: error %d initializing sysfs\n", ret);
 		return ret;
 	}
+	mutex_init(&mydev.data_access_mutex);
 	init_completion(&mydev.data_access_completion);
 	init_waitqueue_head(&mydev.data_access_queue);
 	atomic_set(&mydev.data_access_state, 0);
