@@ -4,6 +4,9 @@
 #include <alloca.h>
 #include <time.h>
 
+
+unsigned long long ticks;
+
 unsigned long long rdtsc()
 {
 	unsigned int lo, hi;
@@ -11,8 +14,30 @@ unsigned long long rdtsc()
 	return ((unsigned long long)hi << 32) | lo;
 }
 
+int tryMalloc()
+{
+	static int npow;
+	void *pointer;
+	size_t size = pow(2.0, (double)npow++);
+
+	ticks = rdtsc();
+	pointer = (void *)malloc(size);
+	ticks = rdtsc() - ticks;
+
+	printf("Malloc %ld byte lasts %d ticks\n", size, ticks);
+
+	if (pointer == NULL) {
+		printf("Bad malloc at %ld\n", size);
+		return -1;
+	}
+
+	free(pointer);
+
+	return 0;
+}
 
 int main()
 {
+    while (!tryMalloc());
 	return 0;
 }
