@@ -15,6 +15,7 @@
 #include <linux/interrupt.h>
 #include <linux/gpio/consumer.h>
 #include <linux/delay.h>
+#include <linux/workqueue.h>
 
 #include "tsl2580_regs.h"
 
@@ -47,8 +48,8 @@
 #define ODFN_M5C 0x0000 /* 0.00 * 2 ^ LUX_SCALE */
 
 /* Random threashold values for interrupt */
-#define INT_LOW_TH 1000
-#define INT_HIGH_TH 1000
+#define INT_LOW_TH 0
+#define INT_HIGH_TH 10000
 
 #define INT_GPIO 4
 
@@ -68,11 +69,13 @@ struct tsl2580_dev {
 	struct mutex data_access_mutex;
 	struct timespec64 read_ts;
 	struct mutex ts_access;
+	struct work_struct isr_bh;
 };
 
 static struct tsl2580_dev mydev;
 static struct class *tsl2580_class;
 
+static void tsl2580_isr_bh(struct work_struct *ws);
 static void tsl2580_prepare_read(void);
 static s32 tsl2580_read_adc0(struct tsl2580_dev *dev);
 static s32 tsl2580_read_adc1(struct tsl2580_dev *dev);
@@ -139,10 +142,15 @@ static struct class_attribute class_attr_lux =
 static struct class_attribute class_attr_rt =
 				__ATTR(rt, 00644, rt_show, rt_store);
 
+static void tsl2580_isr_bh(struct work_struct *work)
+{
+	i2c_smbus_write_byte(mydev.client, TSL2580_CMD_REG | TSL2580_TRNS_SPECIAL | TSL2580_CMD_INT_CLR);
+	tsl2580_prepare_read();
+}
+
 static irqreturn_t tsl2580_isr(int irq, void *data)
 {
-	pr_info("tsl2580: interrupt\n");
-	//i2c_smbus_write_byte(data, TSL2580_CMD_REG | TSL2580_TRNS_SPECIAL | TSL2580_CMD_INT_CLR);
+	schedule_work(&mydev.isr_bh);
 	return IRQ_HANDLED;
 }
 
@@ -439,10 +447,8 @@ err:
 static int tsl2580_probe(struct i2c_client *client,
 			const struct i2c_device_id *device_id)
 {
-	int ret;
+	int ret, irq_n;
 	u8 id;
-	int irq_n;
-	struct gpio_desc *gp;
 
 	pr_info("tsl2580: i2c client address is 0x%X\n", client->addr);
 
@@ -470,6 +476,7 @@ static int tsl2580_probe(struct i2c_client *client,
 		pr_err("tsl2580: error %d initializing sysfs\n", ret);
 		return ret;
 	}
+	INIT_WORK(&mydev.isr_bh, tsl2580_isr_bh);
 	mutex_init(&mydev.data_access_mutex);
 	mutex_init(&mydev.ts_access);
 	init_completion(&mydev.data_access_completion);
@@ -478,7 +485,10 @@ static int tsl2580_probe(struct i2c_client *client,
 	atomic_set(&mydev.thread_stop, 0);
 	mydev.read_data_task = kthread_run(tsl2580_read_task, NULL, "tsl2580_read_thread");
 	read_threashold = jiffies_to_nsecs(read_threashold);
-	devm_gpio_request_one(&client->dev, INT_GPIO, GPIOF_ACTIVE_LOW | GPIOF_OPEN_DRAIN, "INT");
+
+	/* IRQ binding to specific GPIO */
+	devm_gpio_request_one(&client->dev,
+			INT_GPIO, GPIOF_ACTIVE_LOW | GPIOF_OPEN_DRAIN, "INT");
 	gpio_direction_input(INT_GPIO);
 	irq_n = gpio_to_irq(INT_GPIO);
 	if (IS_ERR_VALUE(irq_n)) {
@@ -502,6 +512,7 @@ static int tsl2580_remove(struct i2c_client *client)
 		atomic_set(&mydev.data_access_state, 1);
 		wake_up(&mydev.data_access_queue);
 	}
+	i2c_smbus_write_byte(client, TSL2580_CMD_REG | TSL2580_TRNS_SPECIAL | TSL2580_CMD_INT_CLR);
 	pr_info("tsl2580: remove end\n");
 
 	return 0;
@@ -535,10 +546,8 @@ static void tsl2580_prepare_read(void)
 
 	ktime_get_real_ts64(&ts);
 	if (timespec64_to_ns(&ts) > (tmp + read_threashold)) {
-		if (atomic_read(&mydev.data_access_state) == 0) {
-			atomic_set(&mydev.data_access_state, 1);
+		if (atomic_add_unless(&mydev.data_access_state, 1, 1))
 			wake_up(&mydev.data_access_queue);
-		}
 		wait_for_completion(&mydev.data_access_completion);
 	}
 }
