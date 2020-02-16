@@ -11,25 +11,22 @@ MODULE_AUTHOR("Nick");
 MODULE_DESCRIPTION("Test kernel allocators");
 MODULE_VERSION("0.01");
 
-
-struct timeData
-{
-    u64 alloc;
-    u32 free;
+struct timeData {
+	u64 alloc;
+	u32 free;
 };
 
-static int trykmalloc(u64 size, struct timeData * data)
+static int trykmalloc(u64 size, struct timeData *data)
 {
 	void *pointer;
-	
+
 	data->alloc = hrtimer_cb_get_time(&myTimer.hrtim);
-	pointer = kmalloc(size,GFP_KERNEL);
+	pointer = kmalloc(size, GFP_KERNEL);
 	data->alloc = hrtimer_cb_get_time(&myTimer.hrtim) - data->alloc;
 
-	if (pointer == NULL)
-	{
+	if (pointer == NULL) {
 		printk(KERN_INFO "kmalloc failed at %lld bytes\n", size);
-		return ERROR; 
+		return ERROR;
 	}
 
 	data->free = hrtimer_cb_get_time(&myTimer.hrtim);
@@ -39,17 +36,15 @@ static int trykmalloc(u64 size, struct timeData * data)
 	return 0;
 }
 
-static int tryvmalloc(u64 size, struct timeData * data)
+static int tryvmalloc(u64 size, struct timeData *data)
 {
 	void *pointer;
-	
+
 	data->alloc = hrtimer_cb_get_time(&myTimer.hrtim);
 	pointer = vmalloc(size);
 	data->alloc = hrtimer_cb_get_time(&myTimer.hrtim) - data->alloc;
-	
 
-	if (pointer == NULL)
-	{
+	if (pointer == NULL) {
 		printk(KERN_INFO "vmalloc failed at %lld bytes\n", size);
 		return ERROR;
 	}
@@ -61,17 +56,15 @@ static int tryvmalloc(u64 size, struct timeData * data)
 	return 0;
 }
 
-static int trykzalloc(u64 size, struct timeData * data)
+static int trykzalloc(u64 size, struct timeData *data)
 {
 	void *pointer;
 
 	data->alloc = hrtimer_cb_get_time(&myTimer.hrtim);
-	pointer = kzalloc(size, GFP_KERNEL );
+	pointer = kzalloc(size, GFP_KERNEL);
 	data->alloc = hrtimer_cb_get_time(&myTimer.hrtim) - data->alloc;
-	
 
-	if (pointer == NULL)
-	{
+	if (pointer == NULL) {
 		printk(KERN_INFO "kzalloc failed at %lld bytes\n", size);
 		return ERROR;
 	}
@@ -98,20 +91,17 @@ static int initTim(void)
 	return 0;
 }
 
-
-
-
 static int __init mod_init(void)
 {
-    initTim();
+	initTim();
 	hrtimer_start(&myTimer.hrtim, myTimer.period, myTimer.mode);
 	return 0;
 }
 
 static void __exit mod_exit(void)
 {
-    hrtimer_cancel(&myTimer.hrtim);
-}   
+	hrtimer_cancel(&myTimer.hrtim);
+}
 
 module_init(mod_init);
 module_exit(mod_exit);
