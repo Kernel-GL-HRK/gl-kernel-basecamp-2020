@@ -15,6 +15,11 @@ MODULE_AUTHOR("Nick");
 MODULE_DESCRIPTION("Timer");
 MODULE_VERSION("0.01");
 
+#define REL_T 0
+#define ABS_T 1
+
+#define MSEC_IN_SEC 100000
+
 static ssize_t read_sysfs(struct class *class, struct class_attribute *attr,
 			  char *buf);
 static ssize_t write_sysfs(struct class *class, struct class_attribute *attr,
@@ -26,6 +31,8 @@ static struct class *timer;
 static struct class_attribute myTim =
 	__ATTR(myTim, S_IWUSR | S_IRUGO, read_sysfs, write_sysfs);
 
+static unsigned long long nseca;
+static char mode;
 
 struct st {
 	struct hrtimer hrtim;
@@ -55,6 +62,21 @@ static int initTim(void)
 static ssize_t read_sysfs(struct class *class, struct class_attribute *attr,
 			  char *buf)
 {
+	switch (mode) {
+	case REL_T:
+		sprintf(buf, "%llu.%llu", myTimer.nsec / MSEC_IN_SEC,
+			myTimer.nsec % MSEC_IN_SEC);
+		nseca += myTimer.nsec;
+		myTimer.nsec = 0;
+		break;
+	case ABS_T:
+		nseca += myTimer.nsec;
+		myTimer.nsec = 0;
+		sprintf(buf, "%llu.%llu", nseca / MSEC_IN_SEC,
+			nseca % MSEC_IN_SEC);
+		break;
+	}
+
 	return strlen(buf);
 }
 
@@ -62,8 +84,13 @@ static ssize_t read_sysfs(struct class *class, struct class_attribute *attr,
 static ssize_t write_sysfs(struct class *class, struct class_attribute *attr,
 			   const char *buf, size_t count)
 {
+	if (buf[0] == ('0' + REL_T))
+		mode = REL_T;
+	else
+		mode = ABS_T;
 	return count;
 }
+
 
 static int init_sysfs(void)
 {
@@ -75,6 +102,7 @@ static int init_sysfs(void)
 
 	return 0;
 }
+
 
 static int exit_sysfs(void)
 {
@@ -96,11 +124,13 @@ static int __init mod_init(void)
 	return 0;
 }
 
+
 static void __exit mod_exit(void)
 {
     exit_sysfs();
 	hrtimer_cancel(&myTimer.hrtim);
 }
+
 
 module_init(mod_init);
 module_exit(mod_exit);
