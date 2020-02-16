@@ -39,6 +39,28 @@ static int trykmalloc(u64 size, struct timeData * data)
 	return 0;
 }
 
+static int tryvmalloc(u64 size, struct timeData * data)
+{
+	void *pointer;
+	
+	data->alloc = hrtimer_cb_get_time(&myTimer.hrtim);
+	pointer = vmalloc(size);
+	data->alloc = hrtimer_cb_get_time(&myTimer.hrtim) - data->alloc;
+	
+
+	if (pointer == NULL)
+	{
+		printk(KERN_INFO "vmalloc failed at %lld bytes\n", size);
+		return ERROR;
+	}
+
+	data->free = hrtimer_cb_get_time(&myTimer.hrtim);
+	vfree(pointer);
+	data->free = hrtimer_cb_get_time(&myTimer.hrtim) - data->free;
+
+	return 0;
+}
+
 struct timer_struct {
 	struct hrtimer hrtim;
 	ktime_t period;
@@ -53,6 +75,7 @@ static int initTim(void)
 	//myTimer.hrtim.function = NULL;
 	return 0;
 }
+
 
 
 
