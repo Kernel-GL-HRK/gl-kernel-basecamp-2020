@@ -4,6 +4,8 @@ USB_CVT=1
 BLK_DEV=2
 OTHER=3
 
+STATUS_OK=0
+
 function detrDevice
 {
 	local dev=$1
@@ -21,7 +23,30 @@ function detrDevice
 	return $OTHER
 }
 
-STATUS_OK=0
+function printInfo
+{
+	IFS=$'\n'
+	cur=${1}
+	for dev in $cur
+	do
+		echo $dev
+		detrDevice $dev
+
+		case $? in
+			$USB_CVT)
+			       	echo "Usb to ttl convertor"
+				;;
+			$BLK_DEV)
+			       	echo "Block device"
+				sudo lshw -short | grep ${dev//[<> ]} -m 1
+				;;
+			$OTHER)
+			       	continue
+				;;
+		esac
+        
+	done
+}
 
 function main
 {
@@ -36,6 +61,7 @@ function main
 	    if [ -n "$difs" ]
     	then
 	    	sleep .5
+            printInfo "$difs"
 		    devs=`ls /dev/`
 	    fi	
     done
