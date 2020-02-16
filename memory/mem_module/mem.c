@@ -61,6 +61,28 @@ static int tryvmalloc(u64 size, struct timeData * data)
 	return 0;
 }
 
+static int trykzalloc(u64 size, struct timeData * data)
+{
+	void *pointer;
+
+	data->alloc = hrtimer_cb_get_time(&myTimer.hrtim);
+	pointer = kzalloc(size, GFP_KERNEL );
+	data->alloc = hrtimer_cb_get_time(&myTimer.hrtim) - data->alloc;
+	
+
+	if (pointer == NULL)
+	{
+		printk(KERN_INFO "kzalloc failed at %lld bytes\n", size);
+		return ERROR;
+	}
+
+	data->free = hrtimer_cb_get_time(&myTimer.hrtim);
+	kzfree(pointer);
+	data->free = hrtimer_cb_get_time(&myTimer.hrtim) - data->free;
+
+	return 0;
+}
+
 struct timer_struct {
 	struct hrtimer hrtim;
 	ktime_t period;
