@@ -58,9 +58,31 @@ int tryCalloc()
 	return 0;
 }
 
+int tryAlloca()
+{
+	static int npow;
+	int *pointer;
+	size_t size = pow(2.0, (double)npow++);
+
+	//printf("Trying to alloc at %d\n", npow);
+
+	ticks = rdtsc();
+	pointer = (int *)alloca(size);
+	ticks = rdtsc() - ticks;
+
+	printf("Alloca %ld bytes lasts %d ticks\n", size, ticks);
+	// alloca never return NULL
+	// lets try crash the program
+
+	*(pointer + size) = 0x1;
+
+	return 0;
+}
+
 int main()
 {
     while (!tryMalloc());
     while (!tryCalloc());
+    while (!tryAlloca());
 	return 0;
 }
