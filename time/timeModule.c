@@ -34,14 +34,23 @@ struct st {
 	unsigned long long nsec;
 } myTimer;
 
+static enum hrtimer_restart timCallback(struct hrtimer *tim)
+{
+	myTimer.nsec++;
+	hrtimer_forward(tim, tim->base->get_time(), myTimer.period);
+	return HRTIMER_RESTART;
+}
+
+
 static int initTim(void)
 {
 	myTimer.mode = 0x1;
 	myTimer.period = ktime_set(0, 1000);
 	hrtimer_init(&myTimer.hrtim, CLOCK_REALTIME, myTimer.mode);
-	myTimer.hrtim.function = NULL;
+	myTimer.hrtim.function = timCallback;
 	return 0;
 }
+
 
 static ssize_t read_sysfs(struct class *class, struct class_attribute *attr,
 			  char *buf)
