@@ -2,6 +2,7 @@
 #include <linux/module.h>
 #include <linux/kernel.h>
 
+#include <linux/hrtimer.h>
 #include <linux/fs.h>
 #include <linux/device.h>
 #include <linux/cdev.h>
@@ -25,6 +26,22 @@ static struct class *timer;
 static struct class_attribute myTim =
 	__ATTR(myTim, S_IWUSR | S_IRUGO, read_sysfs, write_sysfs);
 
+
+struct st {
+	struct hrtimer hrtim;
+	ktime_t period;
+	enum hrtimer_mode mode;
+	unsigned long long nsec;
+} myTimer;
+
+static int initTim(void)
+{
+	myTimer.mode = 0x1;
+	myTimer.period = ktime_set(0, 1000);
+	hrtimer_init(&myTimer.hrtim, CLOCK_REALTIME, myTimer.mode);
+	myTimer.hrtim.function = NULL;
+	return 0;
+}
 
 static ssize_t read_sysfs(struct class *class, struct class_attribute *attr,
 			  char *buf)
@@ -65,12 +82,15 @@ static int exit_sysfs(void)
 static int __init mod_init(void)
 {
     init_sysfs();
+	initTim();
+	hrtimer_start(&myTimer.hrtim, myTimer.period, myTimer.mode);
 	return 0;
 }
 
 static void __exit mod_exit(void)
 {
     exit_sysfs();
+	hrtimer_cancel(&myTimer.hrtim);
 }
 
 module_init(mod_init);
