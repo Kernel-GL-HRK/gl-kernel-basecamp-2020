@@ -11,6 +11,10 @@
 #include <linux/moduleparam.h>
 #include <linux/time64.h>
 #include <linux/timekeeping.h>
+#include <linux/gpio.h>
+#include <linux/interrupt.h>
+#include <linux/gpio/consumer.h>
+#include <linux/delay.h>
 
 #include "tsl2580_regs.h"
 
@@ -43,8 +47,10 @@
 #define ODFN_M5C 0x0000 /* 0.00 * 2 ^ LUX_SCALE */
 
 /* Random threashold values for interrupt */
-#define INT_LOW_TH 500
-#define INT_HIGH_TH 10000
+#define INT_LOW_TH 1000
+#define INT_HIGH_TH 1000
+
+#define INT_GPIO 4
 
 static u64 read_threashold = HZ;
 
@@ -97,6 +103,7 @@ static ssize_t rt_store(struct class *class,
 static int tsl2580_probe(struct i2c_client *client,
 			const struct i2c_device_id *id);
 static int tsl2580_remove(struct i2c_client *client);
+static irqreturn_t tsl2580_isr(int irq, void *data);
 
 static const struct i2c_device_id tsl2580_i2c_id[] = {
 	{"tsl2580", 0},
@@ -131,6 +138,13 @@ static struct class_attribute class_attr_lux =
 				__ATTR(lux, 00644, lux_show, NULL);
 static struct class_attribute class_attr_rt =
 				__ATTR(rt, 00644, rt_show, rt_store);
+
+static irqreturn_t tsl2580_isr(int irq, void *data)
+{
+	pr_info("tsl2580: interrupt\n");
+	//i2c_smbus_write_byte(data, TSL2580_CMD_REG | TSL2580_TRNS_SPECIAL | TSL2580_CMD_INT_CLR);
+	return IRQ_HANDLED;
+}
 
 static s32 tsl2580_read_lux(struct tsl2580_dev *dev)
 {
@@ -427,6 +441,8 @@ static int tsl2580_probe(struct i2c_client *client,
 {
 	int ret;
 	u8 id;
+	int irq_n;
+	struct gpio_desc *gp;
 
 	pr_info("tsl2580: i2c client address is 0x%X\n", client->addr);
 
@@ -462,6 +478,19 @@ static int tsl2580_probe(struct i2c_client *client,
 	atomic_set(&mydev.thread_stop, 0);
 	mydev.read_data_task = kthread_run(tsl2580_read_task, NULL, "tsl2580_read_thread");
 	read_threashold = jiffies_to_nsecs(read_threashold);
+	devm_gpio_request_one(&client->dev, INT_GPIO, GPIOF_ACTIVE_LOW | GPIOF_OPEN_DRAIN, "INT");
+	gpio_direction_input(INT_GPIO);
+	irq_n = gpio_to_irq(INT_GPIO);
+	if (IS_ERR_VALUE(irq_n)) {
+		pr_err("tsl2580: error %d getting irq for gpio\n", ret);
+		return ret;
+	}
+	ret = devm_request_irq(&client->dev, irq_n, tsl2580_isr,
+			IRQF_TRIGGER_FALLING, "tsl2580", client);
+	if (IS_ERR_VALUE(ret)) {
+		pr_err("tsl2580: error %d requesting irq\n", ret);
+		return ret;
+	}
 	return 0;
 }
 

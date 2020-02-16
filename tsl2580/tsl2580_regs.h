@@ -79,4 +79,9 @@
 #define TSL2580_INT_PRST_14 0x0E
 #define TSL2580_INT_PRST_15 0x0F
 
+/* Command register special function */
+#define TSL2580_CMD_INT_CLR 0x01
+#define TSL2580_CMD_STOP_MI 0x02
+#define TSL2580_CMD_START_MI 0x03
+
 #endif
