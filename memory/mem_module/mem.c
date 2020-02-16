@@ -11,7 +11,33 @@ MODULE_AUTHOR("Nick");
 MODULE_DESCRIPTION("Test kernel allocators");
 MODULE_VERSION("0.01");
 
-static u64 nsec;
+
+struct timeData
+{
+    u64 alloc;
+    u32 free;
+};
+
+static int trykmalloc(u64 size, struct timeData * data)
+{
+	void *pointer;
+	
+	data->alloc = hrtimer_cb_get_time(&myTimer.hrtim);
+	pointer = kmalloc(size,GFP_KERNEL);
+	data->alloc = hrtimer_cb_get_time(&myTimer.hrtim) - data->alloc;
+
+	if (pointer == NULL)
+	{
+		printk(KERN_INFO "kmalloc failed at %lld bytes\n", size);
+		return ERROR; 
+	}
+
+	data->free = hrtimer_cb_get_time(&myTimer.hrtim);
+	kfree(pointer);
+	data->free = hrtimer_cb_get_time(&myTimer.hrtim) - data->free;
+
+	return 0;
+}
 
 struct timer_struct {
 	struct hrtimer hrtim;
