@@ -6,9 +6,9 @@ INCDIR   := ./include
 EXECUTABLE := timer
 TARGET     := $(BUILDDIR)/$(EXECUTABLE)
 
-SRC := $(shell find $(SRCDIR) -name *.c)
+SRC := $(shell find $(SRCDIR) -name *.c 2>/dev/null)
 OBJ := $(SRC:%.c=$(OBJDIR)/%.o)
-INC := $(shell find $(INCDIR) -name *.h)
+INC := $(shell find $(INCDIR) -name *.h 2>/dev/null)
 
 CLANG  := clang
 FORMAT := clang-format -i -style=file
