@@ -1,4 +1,4 @@
-obj-m += i2c_dev.o
+obj-m += i2c_my_mod.o
 
 KERN_DIR ?= /lib/modules/$(shell uname -r)/build
 
