@@ -1,0 +1,12 @@
+/dts-v1/;
+/plugin/;
+
+/ {
+    target = <&i2c0>;
+
+    fragment@0 {
+        __overlay__ {
+            status = "OK";
+        };
+    };
+};
