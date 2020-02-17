@@ -12,4 +12,3 @@ for (( del = 0; del < 30; del += 5)); do
 done
 make uninstall
 
-exit $RETURN_SUCCESS
