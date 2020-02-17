@@ -68,4 +68,3 @@ exec 1>&4 3>&- 4>&- #Return stdout, close log.txt, close temporary stdout
 echo "End of output redirection"
 make uninstall
 
-exit $RETURN_SUCCESS
