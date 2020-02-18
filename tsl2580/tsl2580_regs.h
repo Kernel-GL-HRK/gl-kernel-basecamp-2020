@@ -52,4 +52,36 @@
 #define TSL2580_ANALOG_GAIN_16X 0x2
 #define TSL2580_ANALOG_GAIN_111X 0x3
 
+/* Interrupt register control select */
+#define TSL2580_INT_CTRL_DISABLE 0x00
+#define TSL2580_INT_CTRL_LEVEL (0b01 << 4)
+#define TSL2580_INT_CTRL_SMB (0b10 << 4)
+#define TSL2580_INT_CTRL_TEST (0b11 << 4)
+
+/* Interrupt register stop ADC integration on interrupt */
+#define TSL2580_INT_CTRL_INTR_STOP 1 << 6
+
+/* Interrupt register persistance select */
+#define TSL2580_INT_PRST_ADC 0x00
+#define TSL2580_INT_PRST_TH 0x01
+#define TSL2580_INT_PRST_2 0x02
+#define TSL2580_INT_PRST_3 0x03
+#define TSL2580_INT_PRST_4 0x04
+#define TSL2580_INT_PRST_5 0x05
+#define TSL2580_INT_PRST_6 0x06
+#define TSL2580_INT_PRST_7 0x07
+#define TSL2580_INT_PRST_8 0x08
+#define TSL2580_INT_PRST_9 0x09
+#define TSL2580_INT_PRST_10 0x0A
+#define TSL2580_INT_PRST_11 0x0B
+#define TSL2580_INT_PRST_12 0x0C
+#define TSL2580_INT_PRST_13 0x0D
+#define TSL2580_INT_PRST_14 0x0E
+#define TSL2580_INT_PRST_15 0x0F
+
+/* Command register special function */
+#define TSL2580_CMD_INT_CLR 0x01
+#define TSL2580_CMD_STOP_MI 0x02
+#define TSL2580_CMD_START_MI 0x03
+
 #endif
