@@ -1,0 +1,129 @@
+*--------------------*kmalloc & vmalloc (random buffer)*---------------------*
+
+Buffer size (bytes)      Memory         Allocation (ns)     Freeing (ns)        
+
+11336                    kernel         5688                1308                
+                         virtual        9447                3327                
+
+32636                    kernel         6027                830                 
+                         virtual        11242               2606                
+
+34025                    kernel         11355               943                 
+                         virtual        9602                3571                
+
+56428                    kernel         8185                717                 
+                         virtual        11669               2366                
+
+71904                    kernel         16542               784                 
+                         virtual        14788               2843                
+
+90812                    kernel         16153               688                 
+                         virtual        15931               2907                
+
+99945                    kernel         16326               780                 
+                         virtual        16111               3181                
+
+124562                   kernel         16176               756                 
+                         virtual        22866               4543                
+
+137177                   kernel         38456               1153                
+                         virtual        30863               5513                
+
+161411                   kernel         37389               1248                
+                         virtual        31801               6124                
+
+
+
+*------------------------*kmalloc & zsmalloc & vmalloc*------------------------*
+
+Buffer size (bytes)      Memory         Allocation (ns)     Freeing (ns)        
+
+                         kernel         457                 196                 
+4                        zram           7169                1149                
+                         virtual        5118                1342                
+
+                         kernel         449                 198                 
+8                        zram           2340                1192                
+                         virtual        4428                1410                
+
+                         kernel         335                 202                 
+16                       zram           2606                1267                
+                         virtual        4988                1491                
+
+                         kernel         236                 155                 
+32                       zram           3692                1530                
+                         virtual        4791                1477                
+
+                         kernel         320                 138                 
+64                       zram           2417                1122                
+                         virtual        4665                1417                
+
+                         kernel         159                 140                 
+128                      zram           3504                1537                
+                         virtual        4392                1327                
+
+                         kernel         319                 200                 
+256                      zram           2079                1098                
+                         virtual        4432                1516                
+
+                         kernel         244                 157                 
+512                      zram           3911                1782                
+                         virtual        4985                1393                
+
+                         kernel         312                 277                 
+1024                     zram           4122                1776                
+                         virtual        5010                1624                
+
+                         kernel         409                 276                 
+2048                     zram           3651                1593                
+                         virtual        5365                1495                
+
+                         kernel         423                 225                 
+4096                     zram           2328                1114                
+                         virtual        4707                1271                
+
+
+
+*----------------------*kmalloc & get_free_pages & vmalloc*----------------------*
+
+Order     Buffer size (bytes)      Memory         Allocation (ns)     Freeing (ns)        
+
+                                   kernel         437                 227                 
+0         4096                     pages          613                 387                 
+                                   virtual        4510                1621                
+
+                                   kernel         1001                270                 
+1         8192                     pages          1283                377                 
+                                   virtual        5176                1690                
+
+                                   kernel         2788                750                 
+2         16384                    pages          2414                728                 
+                                   virtual        6002                1674                
+
+                                   kernel         4655                708                 
+3         32768                    pages          4322                479                 
+                                   virtual        8299                2228                
+
+                                   kernel         8698                648                 
+4         65536                    pages          7970                507                 
+                                   virtual        12631               2983                
+
+                                   kernel         16571               713                 
+5         131072                   pages          15109               620                 
+                                   virtual        23763               4533                
+
+                                   kernel         57773               1105                
+6         262144                   pages          40179               1020                
+                                   virtual        38812               7383                
+
+                                   kernel         63579               1223                
+7         524288                   pages          61553               1225                
+                                   virtual        75492               13528               
+
+                                   kernel         122523              1530                
+8         1048576                  pages          119807              1878                
+                                   virtual        153615              28411               
+
+                                   kernel         246018              2249                
+9         2097152                  pages          239435              3035                
+                                   virtual        367090              64309               
