@@ -1,0 +1,35 @@
+kmalloc() test:
+buffer	alloc	free
+4096	204	78
+65536	6831	978
+1048576	88147	1315
+vmalloc() test:
+buffer	alloc	free
+4096	3359	1065
+65536	10395	2369
+1048576	155180	34658
+kzalloc() test:
+buffer	alloc	free
+4096	565	147
+65536	4740	964
+1048576	82042	1743
+vzalloc() test:
+buffer	alloc	free
+4096	3471	1243
+65536	8203	2294
+1048576	128242	29967
+kvmalloc() test:
+buffer	alloc	free
+4096	709	323
+65536	4184	718
+1048576	73510	1384
+kvzalloc() test:
+buffer	alloc	free
+4096	479	104
+65536	3865	352
+1048576	59729	1265
+get_free_pages() test:
+buffer	alloc	free
+4096	448	421
+65536	8260	68
+1048576	5170	64
