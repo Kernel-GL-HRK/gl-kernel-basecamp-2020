@@ -4,6 +4,13 @@
 #include <linux/i2c.h>
 #include <linux/sysfs.h>
 #include <linux/string.h>
+#include <linux/kthread.h>
+#include <linux/wait.h>
+#include <asm/atomic.h>
+#include <linux/mutex.h>
+#include <linux/moduleparam.h>
+#include <linux/time64.h>
+#include <linux/timekeeping.h>
 
 #include "tsl2580_regs.h"
 
@@ -35,22 +42,35 @@
 #define ODFN_B5C 0x0000 /* 0.00 * 2 ^ LUX_SCALE */
 #define ODFN_M5C 0x0000 /* 0.00 * 2 ^ LUX_SCALE */
 
+static u64 read_threashold = HZ;
+
 struct tsl2580_dev {
 	struct i2c_client *client;
 	u8 dev_id;
 	u16 data_adc0;
 	u16 data_adc1;
 	u16 data_lux;
+	struct task_struct *read_data_task;
+	wait_queue_head_t data_access_queue;
+	atomic_t data_access_state;
+	atomic_t thread_stop;
+	struct completion data_access_completion;
+	struct mutex data_access_mutex;
+	struct timespec64 read_ts;
+	struct mutex ts_access;
 };
 
 static struct tsl2580_dev mydev;
 static struct class *tsl2580_class;
 
+static void tsl2580_prepare_read(void);
 static s32 tsl2580_read_adc0(struct tsl2580_dev *dev);
 static s32 tsl2580_read_adc1(struct tsl2580_dev *dev);
 static s32 tsl2580_read_lux(struct tsl2580_dev *dev);
 static s32 tsl2580_calc_lux(struct tsl2580_dev *dev, s32 low, s32 high);
 static int tsl2580_read_data(struct tsl2580_dev *dev);
+static int tsl2580_read_task(void *data);
+static int tsl2580_init_sysfs(void);
 static ssize_t who_am_i_show(struct class *class,
 			struct class_attribute *attr,
 			char *buf);
@@ -63,6 +83,13 @@ static ssize_t adc1_show(struct class *class,
 static ssize_t lux_show(struct class *class,
 			struct class_attribute *attr,
 			char *buf);
+static ssize_t rt_show(struct class *class,
+			struct class_attribute *attr,
+			char *buf);
+static ssize_t rt_store(struct class *class,
+			struct class_attribute *attr,
+			const char *buf,
+			size_t size);
 static int tsl2580_probe(struct i2c_client *client,
 			const struct i2c_device_id *id);
 static int tsl2580_remove(struct i2c_client *client);
@@ -98,6 +125,8 @@ static struct class_attribute class_attr_adc1 =
 				__ATTR(adc1, 00644, adc1_show, NULL);
 static struct class_attribute class_attr_lux =
 				__ATTR(lux, 00644, lux_show, NULL);
+static struct class_attribute class_attr_rt =
+				__ATTR(rt, 00644, rt_show, rt_store);
 
 static s32 tsl2580_read_lux(struct tsl2580_dev *dev)
 {
@@ -150,6 +179,7 @@ static s32 tsl2580_calc_lux(struct tsl2580_dev *dev, s32 low, s32 high)
 	case TSL2580_ANALOG_GAIN_16X:
 		sc0 = sc0 >> 4;
 		sc1 = sc0;
+		break;
 	case TSL2580_ANALOG_GAIN_111X:
 		sc1 = sc0 / ADC1_SCALE_111X;
 		sc0 = sc0 / ADC0_SCALE_111X;
@@ -201,7 +231,7 @@ static s32 tsl2580_read_adc1(struct tsl2580_dev *dev)
 	if (high < 0)
 		return high;
 	/* FIXME: assumes little endian */
-	return (low | (high << 16));
+	return (low | (high << 8));
 
 }
 
@@ -224,7 +254,7 @@ static s32 tsl2580_read_adc0(struct tsl2580_dev *dev)
 	if (high < 0)
 		return high;
 	/* FIXME: assumes little endian */
-	return (low | (high << 16));
+	return (low | (high << 8));
 }
 
 static int tsl2580_read_data(struct tsl2580_dev *dev)
@@ -246,6 +276,30 @@ static int tsl2580_read_data(struct tsl2580_dev *dev)
 	return 0;
 }
 
+static int tsl2580_read_task(void *data)
+{
+	int ret;
+
+	while (!atomic_read(&mydev.thread_stop)) {
+		wait_event(mydev.data_access_queue, atomic_read(&mydev.data_access_state));
+		if (atomic_read(&mydev.thread_stop))
+			break;
+		mutex_lock(&mydev.ts_access);
+		ktime_get_real_ts64(&mydev.read_ts);
+		mutex_unlock(&mydev.ts_access);
+
+		mutex_lock(&mydev.data_access_mutex);
+		ret = tsl2580_read_data(&mydev);
+		mutex_unlock(&mydev.data_access_mutex);
+		if (IS_ERR_VALUE(ret))
+			return ret;
+
+		complete_all(&mydev.data_access_completion);
+		atomic_set(&mydev.data_access_state, 0);
+	}
+	return 0;
+}
+
 static int __must_check tsl2580_default_config(struct tsl2580_dev *dev)
 {
 	int ret;
@@ -254,31 +308,77 @@ static int __must_check tsl2580_default_config(struct tsl2580_dev *dev)
 		return -EINVAL;
 	ret = i2c_smbus_write_byte(dev->client,
 	TSL2580_CMD_REG| TSL2580_TRNS_BLOCK | TSL2580_CTRL_REG);
-	if (ret < 0)
+	if (IS_ERR_VALUE(ret))
 		return ret;
 	/* Enable TSL2580 */
 	ret = i2c_smbus_write_byte(dev->client,
 	TSL2580_CTRL_POWER | TSL2580_CTRL_ADC_EN);
-	if (ret < 0)
+	if (IS_ERR_VALUE(ret))
 		return ret;
 	ret = i2c_smbus_write_byte(dev->client,
 	TSL2580_CMD_REG | TSL2580_TRNS_BLOCK | TSL2580_TIMING_REG);
-	if (ret < 0)
+	if (IS_ERR_VALUE(ret))
 		return ret;
 	/* 148 integration cycles by default */
 	ret = i2c_smbus_write_byte(dev->client, TSL2580_TIMING_148);
-	if (ret < 0)
+	if (IS_ERR_VALUE(ret))
 		return ret;
 	ret = i2c_smbus_write_byte(dev->client,
 	TSL2580_CMD_REG | TSL2580_TRNS_BLOCK | TSL2580_ANALOG_REG);
-	if (ret < 0)
+	if (IS_ERR_VALUE(ret))
 		return ret;
 	/* 16x analog gain by default */
 	ret = i2c_smbus_write_byte(dev->client, TSL2580_ANALOG_GAIN_16X);
-	if (ret < 0)
+	if (IS_ERR_VALUE(ret))
 		return ret;
 
 	return 0;
+}
+
+static int tsl2580_init_sysfs(void)
+{
+	int ret;
+
+	tsl2580_class = class_create(THIS_MODULE, TSL2580_CLASS_NAME);
+	if (IS_ERR(tsl2580_class)) {
+		ret = PTR_ERR(tsl2580_class);
+		pr_err("tsl2580: failed to create a class; error %d\n", ret);
+		goto err;
+	}
+	ret = class_create_file(tsl2580_class, &class_attr_who_am_i);
+	if (IS_ERR_VALUE(ret)) {
+		pr_err("tsl2580: error %d creating a who_am_i attribute\n", ret);
+		goto err;
+	}
+	ret = class_create_file(tsl2580_class, &class_attr_adc0);
+	if (IS_ERR_VALUE(ret)) {
+		pr_err("tsl2580: error %d creating an adc0 attribute\n", ret);
+		goto err;
+	}
+	ret = class_create_file(tsl2580_class, &class_attr_adc1);
+	if (IS_ERR_VALUE(ret)) {
+		pr_err("tsl2580: error %d creating an adc1 attribute\n", ret);
+		goto err;
+	}
+	ret = class_create_file(tsl2580_class, &class_attr_lux);
+	if (IS_ERR_VALUE(ret)) {
+		pr_err("tsl2580: error %d creating a lux attribute\n", ret);
+		goto err;
+	}
+	ret = class_create_file(tsl2580_class, &class_attr_rt);
+	if (IS_ERR_VALUE(ret)) {
+		pr_err("tsl2580: error %d creating rt attribute\n", ret);
+		goto err;
+	}
+
+	return 0;
+err:
+	class_remove_file(tsl2580_class, &class_attr_who_am_i);
+	class_remove_file(tsl2580_class, &class_attr_adc0);
+	class_remove_file(tsl2580_class, &class_attr_adc1);
+	class_remove_file(tsl2580_class, &class_attr_lux);
+	class_destroy(tsl2580_class);
+	return ret;
 }
 
 static int tsl2580_probe(struct i2c_client *client,
@@ -292,7 +392,7 @@ static int tsl2580_probe(struct i2c_client *client,
 	mydev.client = client;
 	ret = i2c_smbus_write_byte(mydev.client,
 	TSL2580_CMD_REG | TSL2580_TRNS_BLOCK | TSL2580_ID_REG);
-	if (ret < 0) {
+	if (IS_ERR_VALUE(ret)) {
 		pr_err("tsl2580: error %d writing to the device\n", ret);
 		return ret;
 	}
@@ -304,16 +404,36 @@ static int tsl2580_probe(struct i2c_client *client,
 	}
 	mydev.dev_id = id;
 	ret = tsl2580_default_config(&mydev);
-	if (ret < 0) {
+	if (IS_ERR_VALUE(ret)) {
 		pr_err("tsl2580: failed to configure the device\n");
 		return ret;
 	}
+	ret = tsl2580_init_sysfs();
+	if (IS_ERR_VALUE(ret)) {
+		pr_err("tsl2580: error %d initializing sysfs\n", ret);
+		return ret;
+	}
+	mutex_init(&mydev.data_access_mutex);
+	mutex_init(&mydev.ts_access);
+	init_completion(&mydev.data_access_completion);
+	init_waitqueue_head(&mydev.data_access_queue);
+	atomic_set(&mydev.data_access_state, 0);
+	atomic_set(&mydev.thread_stop, 0);
+	mydev.read_data_task = kthread_run(tsl2580_read_task, NULL, "tsl2580_read_thread");
+	read_threashold = jiffies_to_nsecs(read_threashold);
 	return 0;
 }
 
 static int tsl2580_remove(struct i2c_client *client)
 {
-	pr_info("tsl2580: remove\n");
+	pr_info("tsl2580: remove start\n");
+	if (mydev.read_data_task) {
+		atomic_set(&mydev.thread_stop, 1);
+		atomic_set(&mydev.data_access_state, 1);
+		wake_up(&mydev.data_access_queue);
+	}
+	pr_info("tsl2580: remove end\n");
+
 	return 0;
 }
 
@@ -323,7 +443,6 @@ static ssize_t who_am_i_show(struct class *class,
 			char *buf)
 {
 	char *type;
-	s32 ret;
 	
 	if (mydev.dev_id == TSL2580_LOW_ID)
 		type = "2580\n";
@@ -331,55 +450,69 @@ static ssize_t who_am_i_show(struct class *class,
 		type = "2581\n";
 	else
 		type = "Unknow device type\n";
-	ret = sprintf(buf, type);
 
-	return ret;
+	return sprintf(buf, type);
+}
+
+static void tsl2580_prepare_read(void)
+{
+	struct timespec64 ts;
+	u64 tmp;
+	
+	mutex_lock(&mydev.ts_access);
+	tmp = timespec64_to_ns(&mydev.read_ts);
+	mutex_unlock(&mydev.ts_access);
+
+	ktime_get_real_ts64(&ts);
+	if (timespec64_to_ns(&ts) > (tmp + read_threashold)) {
+		if (atomic_read(&mydev.data_access_state) == 0) {
+			atomic_set(&mydev.data_access_state, 1);
+			wake_up(&mydev.data_access_queue);
+		}
+		wait_for_completion(&mydev.data_access_completion);
+	}
 }
 
 static ssize_t adc0_show(struct class *class,
 			struct class_attribute *attr,
 			char *buf)
 {
-	s32 res;
+	tsl2580_prepare_read();
+	return sprintf(buf, "%d\n", mydev.data_adc0);
 
-	res = tsl2580_read_data(&mydev);
-	if (IS_ERR_VALUE(res)) {
-		pr_err("tsl2580: error %d reading adc0\n", res);
-		return res;
-	}
-	res = sprintf(buf, "%d\n", mydev.data_adc0);
-	return res;
 }
 
 static ssize_t adc1_show(struct class *class,
 			struct class_attribute *attr,
 			char *buf)
 {
-	s32 res;
-
-	res = tsl2580_read_data(&mydev);
-	if (IS_ERR_VALUE(res)) {
-		pr_err("tsl2580: error %d reading adc0\n", res);
-		return res;
-	}
-	res = sprintf(buf, "%d\n", mydev.data_adc1);
-	return res;
+	tsl2580_prepare_read();
+	return sprintf(buf, "%d\n", mydev.data_adc1);
 }
 
 static ssize_t lux_show(struct class *class,
 			struct class_attribute *attr,
 			char *buf)
 {
-	s32 res;
+	tsl2580_prepare_read();
+	return sprintf(buf, "%d\n", mydev.data_lux);
+}
 
-	res = tsl2580_read_data(&mydev);
-	if (IS_ERR_VALUE(res)) {
-		pr_err("tsl2580: error %d reading lux\n", res);
-		return res;
-	}
-	res = sprintf(buf, "%d\n", mydev.data_lux);
-	
-	return res;
+static ssize_t rt_show(struct class *class,
+		struct class_attribute *attr,
+		char *buf)
+{
+	return sprintf(buf, "%llu\n", nsecs_to_jiffies64(read_threashold));
+}
+
+static ssize_t rt_store(struct class *class,
+			struct class_attribute *attr,
+			const char *buf,
+			size_t size)
+{
+	sscanf(buf, "%llu", &read_threashold);
+	read_threashold = jiffies_to_nsecs(read_threashold);
+	return size;
 }
 
 static int __init tsl2580_init(void)
@@ -387,49 +520,15 @@ static int __init tsl2580_init(void)
 	int ret;
 
 	ret = i2c_add_driver(&tsl2580_i2c_driver);
-	if (ret < 0) {
+	if (IS_ERR_VALUE(ret)) {
 		pr_err("tsl2580: error %d adding an i2c driver\n", ret);
 		return ret;
 	}
 	pr_info("tsl2580: i2c driver created\n");
 
-	tsl2580_class = class_create(THIS_MODULE, TSL2580_CLASS_NAME);
-	if (IS_ERR(tsl2580_class)) {
-		ret = PTR_ERR(tsl2580_class);
-		pr_err("tsl2580: failed to create a class; error %d\n", ret);
-		goto err;
-	}
-	ret = class_create_file(tsl2580_class, &class_attr_who_am_i);
-	if (ret < 0) {
-		pr_err("tsl2580: error %d creating a who_am_i attribute\n", ret);
-		goto err;
-	}
-	ret = class_create_file(tsl2580_class, &class_attr_adc0);
-	if (ret < 0) {
-		pr_err("tsl2580: error %d creating an adc0 attribute\n", ret);
-		goto err;
-	}
-	ret = class_create_file(tsl2580_class, &class_attr_adc1);
-	if (ret < 0) {
-		pr_err("tsl2580: error %d creating an adc1 attribute\n", ret);
-		goto err;
-	}
-	ret = class_create_file(tsl2580_class, &class_attr_lux);
-	if (ret < 0) {
-		pr_err("tsl2580: error %d creating a lux attribute\n", ret);
-		goto err;
-	}
-
 	pr_info("tsl2580: init succeded\n");
 
 	return 0;
-err:
-	class_remove_file(tsl2580_class, &class_attr_who_am_i);
-	class_remove_file(tsl2580_class, &class_attr_adc0);
-	class_remove_file(tsl2580_class, &class_attr_adc1);
-	class_remove_file(tsl2580_class, &class_attr_lux);
-	class_destroy(tsl2580_class);
-	return ret;
 }
 
 static void __exit tsl2580_exit(void)
@@ -439,6 +538,7 @@ static void __exit tsl2580_exit(void)
 	class_remove_file(tsl2580_class, &class_attr_adc0);
 	class_remove_file(tsl2580_class, &class_attr_adc1);
 	class_remove_file(tsl2580_class, &class_attr_lux);
+	class_remove_file(tsl2580_class, &class_attr_rt);
 	class_destroy(tsl2580_class);
 	i2c_del_driver(&tsl2580_i2c_driver);
 	pr_info("tsl2580: exit\n");
