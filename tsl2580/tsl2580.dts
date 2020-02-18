@@ -1,0 +1,22 @@
+/dts-v1/;
+/plugin/;
+
+/ {
+
+	fragment@0 {
+		target = <&i2c1>;
+
+		__overlay__ {
+			#address-cells = < 1 >;
+			#size-cells = < 0 >;
+			tsl2580@39 {
+				#address-cells = <1>;
+				#size-cells = <0>;
+				compatible = "gl,tsl2580";
+				status = "ok";
+				reg = <0x39>;
+			};
+		};
+	};
+
+};
